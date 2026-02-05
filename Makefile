@@ -15,11 +15,13 @@ endif
 DATA_DIR = data
 PARSER_DIR = parser
 VIS_DIR = visualization
+
 D3_DIR = $(VIS_DIR)/d3
-GOURCE_DIR = $(VIS_DIR)/other_eg_groute
+GOURCE_DIR = $(VIS_DIR)/groute
 
 # --- Files ---
-SCRIPT = $(PARSER_DIR)/parse.py
+PARSE_SCRIPT = $(PARSER_DIR)/parse.py
+FORK_SCRIPT = $(PARSER_DIR)/fork_detector.py
 JSON_OUTPUT = $(DATA_DIR)/streamgraph_data.json
 TS_FILE = $(D3_DIR)/d3.ts
 JS_OUTPUT = $(D3_DIR)/d3.js
@@ -46,10 +48,10 @@ poster: data d3 gource
 # 2. Data Generation
 data: $(JSON_OUTPUT)
 
-$(JSON_OUTPUT): $(SCRIPT)
+$(JSON_OUTPUT): $(PARSE_SCRIPT)
 	@echo "📊 Parsing Git history..."
 	@mkdir -p $(DATA_DIR)
-	$(PYTHON) $(SCRIPT)
+	$(PYTHON) $(PARSE_SCRIPT)
 
 # 3. D3 Compilation (TypeScript -> JavaScript)
 d3: $(JS_OUTPUT)
@@ -85,6 +87,12 @@ clean:
 	@echo "🧹 Cleaning up generated files..."
 	rm -f $(JSON_OUTPUT)
 	rm -f $(JS_OUTPUT)
+
+
+forks: $(FORK_SCRIPT)
+	@echo "🕵️  Calculating start dates for forks..."
+	@echo "   (This may take a moment as it compares git histories)"
+	@$(PYTHON) $(FORK_SCRIPT)
 
 help:
 	@echo "Usage:"

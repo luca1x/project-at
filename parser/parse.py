@@ -8,7 +8,7 @@ from collections import defaultdict
 # --- CONFIGURATION ---
 # 1. Add the full paths to the local repositories here
 REPO_CONFIG = {
-    "/Users/lucatl/production-tagger": None,
+    #"/Users/lucatl/production-tagger": "2018-03-28",
     "/Users/lucatl/production-front-end": None,
     "/Users/lucatl/production": None,
     "/Users/lucatl/profile-api": None,
@@ -16,14 +16,13 @@ REPO_CONFIG = {
     "/Users/lucatl/profile-db": None,
     "/Users/lucatl/advertiser-connect": None,
     "/Users/lucatl/shared": None,
-    "/Users/lucatl/inference": None,
+    "/Users/lucatl/inference": "2017-06-26",
     "/Users/lucatl/monitoring-utils": None,
     "/Users/lucatl/audience-export": None,
     "/Users/lucatl/items": None,
     "/Users/lucatl/python-lib": None,
     "/Users/lucatl/aggregation": None,
     "/Users/lucatl/utils": None,
-    "/Users/lucatl/audience-export": None,
     "/Users/lucatl/measurement-matching": None,
     "/Users/lucatl/segment-api": None,
     "/Users/lucatl/experience": None
