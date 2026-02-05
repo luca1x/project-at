@@ -31,7 +31,7 @@ REPO_CONFIG = {
 
 # Case-insensitive regex for the author
 AUTHOR_REGEX = "andreas|tschofen|atschofen" 
-OUTPUT_FILE = "streamgraph_data.json"
+OUTPUT_FILE = "../data/streamgraph_data.json"
 
 def get_contributions_per_month(repo_path, author_pattern, start_date=None):
     if not os.path.exists(repo_path):
