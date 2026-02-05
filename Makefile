@@ -1,7 +1,8 @@
 # --- Variables ---
 PYTHON = python3
 TSC = tsc
-# Detect OS to open files automatically (Mac vs Linux vs Windows)
+
+# --- OS Detection ---
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 	OPEN_CMD = open
@@ -11,93 +12,103 @@ else
 	OPEN_CMD = start
 endif
 
-# --- Paths ---
+# --- Directory Paths ---
 DATA_DIR = data
 PARSER_DIR = parser
+CONFIG_DIR = config
 VIS_DIR = visualization
-
 D3_DIR = $(VIS_DIR)/d3
-GOURCE_DIR = $(VIS_DIR)/groute
+GOURCE_DIR = $(VIS_DIR)/other_eg_groute
 
-# --- Files ---
-PARSE_SCRIPT = $(PARSER_DIR)/parse.py
+# --- File Paths ---
+PARSER_SCRIPT = $(PARSER_DIR)/parse.py
 FORK_SCRIPT = $(PARSER_DIR)/fork_detector.py
+CONFIG_JSON = $(CONFIG_DIR)/repo_config.json
 JSON_OUTPUT = $(DATA_DIR)/streamgraph_data.json
+
 TS_FILE = $(D3_DIR)/d3.ts
 JS_OUTPUT = $(D3_DIR)/d3.js
 HTML_FILE = $(D3_DIR)/index.html
-GOURCE_IMG = $(GOURCE_DIR)/gource_render.png
+
+PORT = 8000
+HOST = http://localhost:$(PORT)
+URL = $(HOST)/visualization/d3/index.html
+
 
 # --- Targets ---
 
-.PHONY: all poster data d3 gource clean help
+.PHONY: all poster data dates d3 gource clean help
 
-# Default target
+
+
 all: poster
 
-# 1. The Ultimate Command
-poster: data d3 gource
+# 1. THE MAIN PIPELINE
+poster: data d3 view 
 	@echo "=================================================="
 	@echo "🎨 POSTER ASSETS READY"
 	@echo "=================================================="
-	@echo "1. Streamgraph Data: Generated in $(JSON_OUTPUT)"
-	@echo "2. D3 Visualization: Opening browser..."
+	@echo "1. Data: $(JSON_OUTPUT)"
+	@echo "2. D3: Opening browser..."
 	@$(OPEN_CMD) $(HTML_FILE)
-	@echo "3. Gource: Launching simulation window. Press F12 to screenshot!"
+	@echo "3. Gource: Launching window..."
 
-# 2. Data Generation
+# 2. GENERATE CONFIG (Dates)
+dates: $(CONFIG_JSON)
+
+$(CONFIG_JSON): $(FORK_SCRIPT)
+	@echo "⚙️  Creating config directory..."
+	@mkdir -p $(CONFIG_DIR)
+	@echo "🕵️  Detecting fork dates..."
+	$(PYTHON) $(FORK_SCRIPT)
+
+# 3. GENERATE DATA (Depends on Config)
 data: $(JSON_OUTPUT)
 
-$(JSON_OUTPUT): $(PARSE_SCRIPT)
+$(JSON_OUTPUT): $(PARSER_SCRIPT) $(CONFIG_JSON)
 	@echo "📊 Parsing Git history..."
 	@mkdir -p $(DATA_DIR)
-	$(PYTHON) $(PARSE_SCRIPT)
+	$(PYTHON) $(PARSER_SCRIPT)
 
-# 3. D3 Compilation (TypeScript -> JavaScript)
+# 4. COMPILE D3
 d3: $(JS_OUTPUT)
 
 $(JS_OUTPUT): $(TS_FILE)
 	@echo "🔨 Compiling D3 TypeScript..."
-	# Assuming you have typescript installed globally or locally
 	$(TSC) $(TS_FILE) --target es6 --module es2015 --outDir $(D3_DIR)
 
-# 4. Gource Visualization
-# This runs Gource with the 'High-Res Poster' settings we discussed
+view:
+	@echo "🚀 Opening poster at $(URL)..."
+	
+	@# 1. Kill any existing server on this port (Idempotency Step)
+	@echo "🔍 Checking for existing server on port $(PORT)..."
+	@-lsof -ti :$(PORT) | xargs kill -9 2>/dev/null || true
+	
+	@# 2. Open the browser
+	@if [ "$(UNAME_S)" = "Darwin" ]; then \
+		open "$(URL)"; \
+	elif [ "$(UNAME_S)" = "Linux" ]; then \
+		xdg-open "$(URL)"; \
+	else \
+		start "$(URL)"; \
+	fi
+	
+	@# 3. Start the server
+	@echo "📡 Server starting on port $(PORT). Press Ctrl+C to stop."
+	@python3 -m http.server $(PORT)
+# 5. GOURCE
 gource:
 	@echo "🕸️ Launching Gource..."
-	@echo "   (Remember: Press F12 to take a screenshot, ESC to close)"
-	# Adjust --seconds-per-day if you want it faster/slower
-	gource --viewport 3840x2160 \
-		--transparent \
-		--hide-filenames \
-		--seconds-per-day 0.5 \
-		--auto-skip-seconds 1 \
-		--multi-sampling \
-		--stop-at-end \
-		--highlight-users \
-		--user-image-dir $(GOURCE_DIR)/avatars \
-		--output-ppm-stream - | \
-		# Note: If you want to automate saving the image completely without F12, 
-		# we can pipe to ffmpeg or convert, but opening the window is safer for framing.
-		# For now, we just launch the window:
 	gource --viewport 3840x2160 --transparent --hide-filenames --pause-at-end
 
-# 5. Cleanup
+# CLEANUP
 clean:
-	@echo "🧹 Cleaning up generated files..."
 	rm -f $(JSON_OUTPUT)
 	rm -f $(JS_OUTPUT)
-
-
-forks: $(FORK_SCRIPT)
-	@echo "🕵️  Calculating start dates for forks..."
-	@echo "   (This may take a moment as it compares git histories)"
-	@$(PYTHON) $(FORK_SCRIPT)
+	rm -rf $(CONFIG_DIR)
 
 help:
 	@echo "Usage:"
-	@echo "  make poster   - Generate data, compile D3, and launch visualizations"
-	@echo "  make data     - Only run the python parser"
-	@echo "  make d3       - Only compile TypeScript"
-	@echo "  make gource   - Only launch Gource"
-	@echo "  make clean    - Remove generated data and JS files"
+	@echo "  make poster   - Run everything (dates -> data -> d3 -> gource)"
+	@echo "  make dates    - Only regenerate the repo_config.json"
+	@echo "  make data     - Only regenerate streamgraph_data.json"

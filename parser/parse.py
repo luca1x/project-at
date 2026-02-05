@@ -6,34 +6,15 @@ from datetime import datetime
 from collections import defaultdict
 
 # --- CONFIGURATION ---
-# 1. Add the full paths to the local repositories here
-REPO_CONFIG = {
-    #"/Users/lucatl/production-tagger": "2018-03-28",
-    "/Users/lucatl/production-front-end": None,
-    "/Users/lucatl/production": None,
-    "/Users/lucatl/profile-api": None,
-    "/Users/lucatl/infrastructure": None,
-    "/Users/lucatl/profile-db": None,
-    "/Users/lucatl/advertiser-connect": None,
-    "/Users/lucatl/shared": None,
-    "/Users/lucatl/inference": "2017-06-26",
-    "/Users/lucatl/monitoring-utils": None,
-    "/Users/lucatl/audience-export": None,
-    "/Users/lucatl/items": None,
-    "/Users/lucatl/python-lib": None,
-    "/Users/lucatl/aggregation": None,
-    "/Users/lucatl/utils": None,
-    "/Users/lucatl/measurement-matching": None,
-    "/Users/lucatl/segment-api": None,
-    "/Users/lucatl/experience": None
-}
-
 # Case-insensitive regex for the author
-AUTHOR_REGEX = "andreas|tschofen|atschofen" 
+AUTHOR_REGEX = "tschofen|atschofen" 
 
 # --- PATH SETUP ---
 # 1. Get the absolute path of the folder containing this script (e.g. /.../project/parser)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Pointing to <project>/config/repo_config.json
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "..", "config", "repo_config.json")
 
 # 2. Construct the path to the output file relative to the script
 #    We go up one level ("..") to the project root, then into "data"
@@ -41,12 +22,27 @@ OUTPUT_FILE = os.path.join(SCRIPT_DIR, "..", "data", "streamgraph_data.json")
 
 # 3. Clean up the path (resolves the "..") so it looks nice
 OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
+OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
 
-# Optional: Create the directory if it doesn't exist yet, 
-# preventing "File not found" errors on the first run.
-os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+
+def load_config():
+    """Parses the JSON config file into a python dictionary."""
+    if not os.path.exists(CONFIG_FILE):
+        print(f"❌ Error: Config file not found at: {CONFIG_FILE}")
+        print("   Run 'make dates' first to generate it.")
+        sys.exit(1)
+        
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+            print(f"✅ Loaded config for {len(config)} repositories from {os.path.basename(CONFIG_FILE)}")
+            return config
+    except json.JSONDecodeError as e:
+        print(f"❌ Error decoding JSON: {e}")
+        sys.exit(1)
 
 def get_contributions_per_month(repo_path, author_pattern, start_date=None):
+    
     if not os.path.exists(repo_path):
         print(f"Warning: Path not found: {repo_path}")
         return {}
@@ -63,11 +59,11 @@ def get_contributions_per_month(repo_path, author_pattern, start_date=None):
     # %b  = Body (messages, co-authored-by, signed-off-by, etc.)
     # %x00 = Null byte separator
     cmd = [
-        "git", "-C", repo_path, "log",
+        "git", "-C", repo_path, "log", "HEAD", 
         "--format=%ai|%an %ae %cn %ce %b%x00", 
-        "--all"
+        "--no-decorate"
     ]
-    
+        
     if start_date:
         cmd.append(f"--since={start_date}")
 
@@ -115,14 +111,16 @@ def get_contributions_per_month(repo_path, author_pattern, start_date=None):
     return monthly_counts
 
 def main():
+    repo_config = load_config()
+
     all_data = {}
     all_months = set()
     repo_names = []
 
-    print(f"Scanning {len(REPO_CONFIG)} repositories for '{AUTHOR_REGEX}'...")
+    print(f"Scanning {len(repo_config)} repositories for '{AUTHOR_REGEX}'...")
 
     # Iterate through the dictionary items (path, date)
-    for path, start_date in REPO_CONFIG.items():
+    for path, start_date in repo_config.items():
         repo_name = os.path.basename(os.path.normpath(path))
         repo_names.append(repo_name)
         
@@ -147,6 +145,8 @@ def main():
         for repo in repo_names:
             entry[repo] = all_data[repo].get(month, 0)
         d3_data.append(entry)
+
+    os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(d3_data, f, indent=2)
