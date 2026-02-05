@@ -31,7 +31,21 @@ REPO_CONFIG = {
 
 # Case-insensitive regex for the author
 AUTHOR_REGEX = "andreas|tschofen|atschofen" 
-OUTPUT_FILE = "../data/streamgraph_data.json"
+
+# --- PATH SETUP ---
+# 1. Get the absolute path of the folder containing this script (e.g. /.../project/parser)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 2. Construct the path to the output file relative to the script
+#    We go up one level ("..") to the project root, then into "data"
+OUTPUT_FILE = os.path.join(SCRIPT_DIR, "..", "data", "streamgraph_data.json")
+
+# 3. Clean up the path (resolves the "..") so it looks nice
+OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
+
+# Optional: Create the directory if it doesn't exist yet, 
+# preventing "File not found" errors on the first run.
+os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
 def get_contributions_per_month(repo_path, author_pattern, start_date=None):
     if not os.path.exists(repo_path):
