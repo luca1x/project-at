@@ -33,33 +33,36 @@ REPO_CONFIG = {
 AUTHOR_REGEX = "andreas|tschofen|atschofen" 
 OUTPUT_FILE = "streamgraph_data.json"
 
-def get_commits_per_month(repo_path, author_pattern, start_date=None):
+def get_contributions_per_month(repo_path, author_pattern, start_date=None):
     if not os.path.exists(repo_path):
-        print(f"!!!!! Warning: Path not found: {repo_path}")
+        print(f"Warning: Path not found: {repo_path}")
         return {}
 
     repo_name = os.path.basename(os.path.normpath(repo_path))
     print(f"Processing {repo_name}...", end=" ")
 
-    # Base Git Command
+    # We fetch the raw commit data including:
+    # %ai = Date
+    # %an = Author Name
+    # %ae = Author Email
+    # %cn = Committer Name (often different from author in PRs)
+    # %ce = Committer Email
+    # %b  = Body (messages, co-authored-by, signed-off-by, etc.)
+    # %x00 = Null byte separator
     cmd = [
         "git", "-C", repo_path, "log",
-        "--format=%ai|%an %ae", 
+        "--format=%ai|%an %ae %cn %ce %b%x00", 
         "--all"
     ]
     
-    # NEW: If a start date is provided, let Git do the filtering
     if start_date:
         cmd.append(f"--since={start_date}")
-        print(f"(filtering from {start_date})")
-    else:
-        print("(full history)")
 
     monthly_counts = defaultdict(int)
     pattern = re.compile(author_pattern, re.IGNORECASE)
 
-    # Use POPEN for streaming large repos safely
     try:
+        # Run git command
         process = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
@@ -67,24 +70,33 @@ def get_commits_per_month(repo_path, author_pattern, start_date=None):
             text=True,
             errors='ignore'
         )
+        
+        # Read entire output
+        raw_output, _ = process.communicate()
+        
+        # Split by null byte to isolate each commit
+        commits = raw_output.split('\0')
 
-        for line in process.stdout:
-            try:
-                parts = line.split("|", 1)
-                if len(parts) < 2: continue
-                    
-                date_part = parts[0]
-                author_info = parts[1]
+        for commit in commits:
+            if not commit.strip(): continue
+            
+            # Split Date from the Content
+            # content_part will contain Author, Committer, Emails, AND Body
+            parts = commit.split("|", 1)
+            if len(parts) < 2: continue
+            
+            date_part = parts[0]
+            content_part = parts[1]
 
-                if pattern.search(author_info):
-                    date_str = date_part.split()[0] # 2012-05-31
-                    year_month = date_str[:7]       # 2012-05
-                    monthly_counts[year_month] += 1
-            except Exception:
-                continue
-                
+            # THE GREEDY CHECK:
+            # We search the ENTIRE string (headers + body).
+            # If his name appears anywhere, it counts.
+            if pattern.search(content_part):
+                date_str = date_part.split()[0][:7] # Extract YYYY-MM
+                monthly_counts[date_str] += 1
+
     except Exception as e:
-        print(f"Error running git log: {e}")
+        print(f"Error: {e}")
         return {}
             
     return monthly_counts
@@ -101,7 +113,7 @@ def main():
         repo_name = os.path.basename(os.path.normpath(path))
         repo_names.append(repo_name)
         
-        counts = get_commits_per_month(path, AUTHOR_REGEX, start_date)
+        counts = get_contributions_per_month(path, AUTHOR_REGEX, start_date)
         
         total_found = sum(counts.values())
         print(f"  -> Found {total_found} commits.")
