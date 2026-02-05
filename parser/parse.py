@@ -7,73 +7,85 @@ from collections import defaultdict
 
 # --- CONFIGURATION ---
 # 1. Add the full paths to the local repositories here
-REPO_PATHS = [
-    "/Users/lucatl/production-tagger",
-    "/Users/lucatl/production-frontend",
-    "/Users/lucatl/production",
-    "/Users/lucatl/profile-api",
-    "/Users/lucatl/infrastructure",
-    "/Users/lucatl/profile-db",
-    "/Users/lucatl/connect",
-    "/Users/lucatl/shared",
-    "/Users/lucatl/inference",
-    "/Users/lucatl/monitoring-utils",
-    "/Users/lucatl/audience-export",
-    "/Users/lucatl/items",
-    "/Users/lucatl/python-lib",
-    "/Users/lucatl/aggregation",
-    "/Users/lucatl/utils",
-    "/Users/lucatl/audience-export"
-]
+REPO_CONFIG = {
+    "/Users/lucatl/production-tagger": None,
+    "/Users/lucatl/production-front-end": None,
+    "/Users/lucatl/production": None,
+    "/Users/lucatl/profile-api": None,
+    "/Users/lucatl/infrastructure": None,
+    "/Users/lucatl/profile-db": None,
+    "/Users/lucatl/advertiser-connect": None,
+    "/Users/lucatl/shared": None,
+    "/Users/lucatl/inference": None,
+    "/Users/lucatl/monitoring-utils": None,
+    "/Users/lucatl/audience-export": None,
+    "/Users/lucatl/items": None,
+    "/Users/lucatl/python-lib": None,
+    "/Users/lucatl/aggregation": None,
+    "/Users/lucatl/utils": None,
+    "/Users/lucatl/audience-export": None,
+    "/Users/lucatl/measurement-matching": None,
+    "/Users/lucatl/segment-api": None,
+    "/Users/lucatl/experience": None
+}
 
-# 2. Author matching (Regex is supported)
-# Matches "andreas" OR "tschofen" (case insensitive)
-AUTHOR_REGEX = "andreas|tschofen"
+# Case-insensitive regex for the author
+AUTHOR_REGEX = "andreas|tschofen|atschofen" 
+OUTPUT_FILE = "streamgraph_data.json"
 
-# 3. Output file name
-OUTPUT_FILE = "../data/streamgraph_data.json"
-
-def get_commits_per_month(repo_path, author_pattern):
+def get_commits_per_month(repo_path, author_pattern, start_date=None):
     if not os.path.exists(repo_path):
-        print(f"Warning: Path not found: {repo_path}")
+        print(f"!!!!! Warning: Path not found: {repo_path}")
         return {}
 
     repo_name = os.path.basename(os.path.normpath(repo_path))
-    print(f"Processing {repo_name}...")
+    print(f"Processing {repo_name}...", end=" ")
 
+    # Base Git Command
     cmd = [
         "git", "-C", repo_path, "log",
         "--format=%ai|%an %ae", 
         "--all"
     ]
+    
+    # NEW: If a start date is provided, let Git do the filtering
+    if start_date:
+        cmd.append(f"--since={start_date}")
+        print(f"(filtering from {start_date})")
+    else:
+        print("(full history)")
 
     monthly_counts = defaultdict(int)
     pattern = re.compile(author_pattern, re.IGNORECASE)
 
-    # USE POPEN instead of check_output for streaming
-    process = subprocess.Popen(
-        cmd, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.STDOUT,
-        text=True,       # Handles decoding automatically
-        errors='ignore'  # Ignores weird characters
-    )
+    # Use POPEN for streaming large repos safely
+    try:
+        process = subprocess.Popen(
+            cmd, 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors='ignore'
+        )
 
-    # Iterate line by line as they come in
-    for line in process.stdout:
-        try:
-            parts = line.split("|", 1)
-            if len(parts) < 2: continue
+        for line in process.stdout:
+            try:
+                parts = line.split("|", 1)
+                if len(parts) < 2: continue
+                    
+                date_part = parts[0]
+                author_info = parts[1]
+
+                if pattern.search(author_info):
+                    date_str = date_part.split()[0] # 2012-05-31
+                    year_month = date_str[:7]       # 2012-05
+                    monthly_counts[year_month] += 1
+            except Exception:
+                continue
                 
-            date_part = parts[0]
-            author_info = parts[1]
-
-            if pattern.search(author_info):
-                date_str = date_part.split()[0]
-                year_month = date_str[:7]
-                monthly_counts[year_month] += 1
-        except Exception:
-            continue
+    except Exception as e:
+        print(f"Error running git log: {e}")
+        return {}
             
     return monthly_counts
 
@@ -82,39 +94,39 @@ def main():
     all_months = set()
     repo_names = []
 
-    # 1. Collect data
-    for path in REPO_PATHS:
+    print(f"Scanning {len(REPO_CONFIG)} repositories for '{AUTHOR_REGEX}'...")
+
+    # Iterate through the dictionary items (path, date)
+    for path, start_date in REPO_CONFIG.items():
         repo_name = os.path.basename(os.path.normpath(path))
         repo_names.append(repo_name)
         
-        counts = get_commits_per_month(path, AUTHOR_REGEX)
+        counts = get_commits_per_month(path, AUTHOR_REGEX, start_date)
+        
+        total_found = sum(counts.values())
+        print(f"  -> Found {total_found} commits.")
+        
         all_data[repo_name] = counts
         all_months.update(counts.keys())
 
-    # 2. Sort months to ensure timeline is correct
     if not all_months:
-        print("No commits found matching that author!")
+        print("\nERROR: No commits found matching that author.")
         return
         
     sorted_months = sorted(list(all_months))
     
-    # 3. Build the "Wide" JSON structure for D3
-    # Format: [ { "date": "2012-01", "repoA": 5, "repoB": 0 }, ... ]
+    # Build Wide Format Data
     d3_data = []
-    
     for month in sorted_months:
         entry = {"date": month}
         for repo in repo_names:
-            # If no commits that month, default to 0 (Crucial for Streamgraphs)
             entry[repo] = all_data[repo].get(month, 0)
         d3_data.append(entry)
 
-    # 4. Save to JSON
     with open(OUTPUT_FILE, 'w') as f:
         json.dump(d3_data, f, indent=2)
 
     print(f"\nSuccess! Data saved to {OUTPUT_FILE}")
-    print(f"Found history from {sorted_months[0]} to {sorted_months[-1]}")
 
 if __name__ == "__main__":
     main()
