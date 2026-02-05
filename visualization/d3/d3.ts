@@ -2,106 +2,124 @@
 declare const d3: any;
 
 // --- CONFIGURATION ---
-// Poster size (A2/A1 ratio approx, or huge for high-res print)
-const WIDTH = 1200;
-const HEIGHT = 800;
-const MARGIN = { top: 40, right: 150, bottom: 60, left: 50 };
 
-// A rich, distinct palette for many repositories
-const COLORS = [
-    "#396AB1", "#DA7C30", "#3E9651", "#CC2529", "#535154", 
-    "#6B4C9A", "#922428", "#948B3D", "#1C1C1C", "#4C72B0",
-    "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860"
+// POSTER DIMENSIONS (Vertical Portrait Mode)
+const WIDTH = 2000;
+const HEIGHT = 3000;
+const MARGIN = { top: 100, right: 200, bottom: 50, left: 250 };
+
+// --- COLOR CONFIGURATION ---
+const REPO_COLORS: { [key: string]: string } = {
+    "production": "#E63946",       
+    "production-frontend": "#e87233", 
+    "shared": "#A8DADC",           
+    "infrastructure": "#457B9D",   
+    "profile-api": "#1D3557",
+    "profile-db": "#FFB703",      
+    "python-lib": "#1c9b8c",
+    "segment-api": "#B56576",
+    "advertiser-connect": "#264653"
+    // Add others here...
+};
+
+const FALLBACK_COLORS = [
+    "#6D597A", // Deep Purple (Missing from your main list, great contrast)
+    "#F4A261", // Sandy Orange (Softer than your frontend orange)
+    "#8AB17D", // Sage Green ( Distinct from your Teal)
+    "#E76F51", // Burnt Sienna (Earthy red-orange)
+    "#535154", // Charcoal Grey (Good for "boring" utility repos)
+    "#8172B3", // Soft Lavender
+    "#948B3D", // Olive Green
+    "#B5838D", // Old Rose (Lighter/Softer than segment-api)
+    "#937860", // Coffee Brown
+    "#C44E52"  // Muted Red
 ];
 
 async function drawChart() {
     // 1. Load Data
-    // Note: This path is relative to the HTML file in the browser
     const rawData = await d3.json("../../data/streamgraph_data.json");
 
     // 2. Parse Dates
-    // The JSON date is "YYYY-MM", we need a Date object
     const parseDate = d3.timeParse("%Y-%m");
     const data = rawData.map((d: any) => {
-        const parsed = { ...d, dateObj: parseDate(d.date) };
-        return parsed;
+        return { ...d, dateObj: parseDate(d.date) };
     });
 
-    // 3. Extract Keys (Repo Names)
-    // We filter out 'date' and 'dateObj' to get just the repo names
+    // 3. Stack Setup
     const keys = Object.keys(data[0]).filter(k => k !== "date" && k !== "dateObj");
 
-    // 4. Create the Stack
-    // "wiggle" minimizes the wiggle of the layers (best for streamgraphs)
-    // "inside-out" sorts layers by size (largest in middle) for balance
     const stack = d3.stack()
         .keys(keys)
-        .offset(d3.stackOffsetWiggle) 
+        .offset(d3.stackOffsetWiggle)
         .order(d3.stackOrderInsideOut);
 
     const series = stack(data);
 
-    // 5. Scales
-    const x = d3.scaleTime()
+    // 4. Scales
+    const y = d3.scaleTime()
         .domain(d3.extent(data, (d: any) => d.dateObj))
+        .range([MARGIN.top, HEIGHT - MARGIN.bottom]);
+
+    const maxStack = d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]));
+    const minStack = d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0]));
+    
+    const x = d3.scaleLinear()
+        .domain([minStack, maxStack])
         .range([MARGIN.left, WIDTH - MARGIN.right]);
 
-    const y = d3.scaleLinear()
-        .domain([
-            d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0])),
-            d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]))
-        ])
-        .range([HEIGHT - MARGIN.bottom, MARGIN.top]);
+    // Color Scale
+    const colorScale = (key: string) => {
+        if (REPO_COLORS[key]) return REPO_COLORS[key];
+        let hash = 0;
+        for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+        const index = Math.abs(hash) % FALLBACK_COLORS.length;
+        return FALLBACK_COLORS[index];
+    };
 
-    const color = d3.scaleOrdinal()
-        .domain(keys)
-        .range(COLORS);
-
-    // 6. Area Generator
-    // curveBasis gives that smooth, liquid flow
+    // 5. Area Generator
     const area = d3.area()
-        .x((d: any) => x(d.data.dateObj))
-        .y0((d: any) => y(d[0]))
-        .y1((d: any) => y(d[1]))
-        .curve(d3.curveBasis);
+        .y((d: any) => y(d.data.dateObj))
+        .x0((d: any) => x(d[0]))
+        .x1((d: any) => x(d[1]))
+        .curve(d3.curveBasis); 
 
-    // 7. Select and Clear SVG
+    // 6. Draw SVG
+    d3.select("#chart").html(""); 
+
     const svg = d3.select("#chart")
         .append("svg")
         .attr("viewBox", [0, 0, WIDTH, HEIGHT])
-        .style("font-family", "Helvetica, sans-serif");
+        .attr("xmlns", "http://www.w3.org/2000/svg")
+        .style("background", "#1a1a1a")
+        .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
 
-    // 8. Draw the Streams
-    const paths = svg.selectAll("path")
+    // 7. Add the Streams
+    svg.selectAll("path")
         .data(series)
         .join("path")
-        .attr("fill", (d: any) => color(d.key))
+        .attr("fill", (d: any) => colorScale(d.key))
         .attr("d", area)
-        .attr("stroke", "white")
-        .attr("stroke-width", 0.5)
-        .attr("opacity", 0.9);
+        .attr("stroke", "rgba(0,0,0,0.2)")
+        .attr("stroke-width", 1)
+        .attr("opacity", 1);
 
-    // 9. Add Tooltips (Simple browser title for inspection)
-    paths.append("title")
-        .text((d: any) => d.key);
-
-    // 10. Add Labels (The tricky part)
-    // We try to place labels at the "widest" part of each stream
-    svg.selectAll(".label")
+    // 8. Add Labels (UPDATED: BIGGER & ALWAYS VISIBLE)
+    svg.selectAll("text.label")
         .data(series)
         .join("text")
-        .attr("font-family", "Helvetica, sans-serif")
-        .attr("font-size", "10px")
-        .attr("font-weight", "bold")
-        .attr("fill", "white")
-        .style("text-shadow", "0px 0px 2px rgba(0,0,0,0.5)") // Illustrator might ignore shadows, but browsers love them
+        .attr("class", "label")
         .attr("text-anchor", "middle")
-        .attr("font-size", "10px")
-        .attr("fill", "white")
+        .attr("dominant-baseline", "middle")
+        
+        // --- CHANGE: Use .style() to force priority over CSS ---
+        .style("font-size", "20px")  // <--- This will now work
+        .style("font-weight", "900") 
+        .style("fill", "white")
         .style("pointer-events", "none")
+        .style("text-shadow", "0px 4px 15px rgba(0,0,0,1)") 
+        
         .text((d: any) => d.key)
         .attr("transform", (d: any) => {
-            // Find the data point with the biggest height (y0 - y1)
             let maxDiff = 0;
             let bestPoint = d[0];
             
@@ -113,45 +131,49 @@ async function drawChart() {
                 }
             }
             
-            // If the stream is too thin, don't label it (or label it nearby)
-            if (maxDiff < 5) return "translate(-9999, -9999)";
+            // Show label if the stream is at least 1 pixel wide
+            if (maxDiff < 1) return "translate(-9999, -9999)";
 
-            const xPos = x(bestPoint.data.dateObj);
-            const yPos = y((bestPoint[0] + bestPoint[1]) / 2);
+            const yPos = y(bestPoint.data.dateObj);
+            const xPos = x((bestPoint[0] + bestPoint[1]) / 2);
             return `translate(${xPos}, ${yPos})`;
         });
-
-    // 11. X-Axis (Years)
-    const xAxis = d3.axisBottom(x)
+    // 9. Y-Axis (Time)
+    const yAxis = d3.axisLeft(y)
         .ticks(d3.timeYear.every(1))
         .tickFormat(d3.timeFormat("%Y"))
         .tickSize(0)
-        .tickPadding(10);
+        .tickPadding(30);
 
     svg.append("g")
-        .attr("transform", `translate(0, ${HEIGHT - MARGIN.bottom})`)
-        .call(xAxis)
-        .call((g: any) => g.select(".domain").remove()) // Hide the axis line
+        .attr("transform", `translate(${MARGIN.left - 20}, 0)`)
+        .call(yAxis)
+        .call((g: any) => g.select(".domain").remove())
         .selectAll("text")
-        .attr("font-size", "14px")
-        .attr("fill", "#666");
+        .attr("font-size", "32px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#cccccc");
 }
 
+// --- BUTTON LOGIC ---
+drawChart();
+
+setTimeout(() => {
+    d3.select("#save-btn").on("click", () => {
+        const svgNode = document.querySelector("#chart svg");
+        saveSvg(svgNode, "tschofen_code_poster_final.svg");
+    });
+}, 500);
+
 function saveSvg(svgEl: any, name: string) {
-    // 1. Serialize the SVG DOM to a string
     const serializer = new XMLSerializer();
     let source = serializer.serializeToString(svgEl);
-
-    // 2. Add XML namespaces if they are missing (browsers sometimes strip them)
+    
     if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
         source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
     }
-    
-    // 3. Prep the URL
     source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
     const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
-
-    // 4. Create a fake link and click it
     const link = document.createElement("a");
     link.href = url;
     link.download = name;
@@ -159,11 +181,3 @@ function saveSvg(svgEl: any, name: string) {
     link.click();
     document.body.removeChild(link);
 }
-
-// Hook up the button (add this after your drawChart() call)
-d3.select("#save-btn").on("click", () => {
-    const svgNode = document.querySelector("#chart svg");
-    saveSvg(svgNode, "streamgraph.svg");
-});
-
-drawChart();
