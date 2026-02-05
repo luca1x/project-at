@@ -90,7 +90,11 @@ async function drawChart() {
     svg.selectAll(".label")
         .data(series)
         .join("text")
-        .attr("class", "label")
+        .attr("font-family", "Helvetica, sans-serif")
+        .attr("font-size", "10px")
+        .attr("font-weight", "bold")
+        .attr("fill", "white")
+        .style("text-shadow", "0px 0px 2px rgba(0,0,0,0.5)") // Illustrator might ignore shadows, but browsers love them
         .attr("text-anchor", "middle")
         .attr("font-size", "10px")
         .attr("fill", "white")
@@ -132,5 +136,34 @@ async function drawChart() {
         .attr("font-size", "14px")
         .attr("fill", "#666");
 }
+
+function saveSvg(svgEl: any, name: string) {
+    // 1. Serialize the SVG DOM to a string
+    const serializer = new XMLSerializer();
+    let source = serializer.serializeToString(svgEl);
+
+    // 2. Add XML namespaces if they are missing (browsers sometimes strip them)
+    if(!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)){
+        source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
+    
+    // 3. Prep the URL
+    source = '<?xml version="1.0" standalone="no"?>\r\n' + source;
+    const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+
+    // 4. Create a fake link and click it
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Hook up the button (add this after your drawChart() call)
+d3.select("#save-btn").on("click", () => {
+    const svgNode = document.querySelector("#chart svg");
+    saveSvg(svgNode, "streamgraph.svg");
+});
 
 drawChart();
