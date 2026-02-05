@@ -96,6 +96,8 @@ view:
 	@# 3. Start the server
 	@echo "📡 Server starting on port $(PORT). Press Ctrl+C to stop."
 	@python3 -m http.server $(PORT)
+
+	sleep 0.5
 # 5. GOURCE
 gource:
 	@echo "🕸️ Launching Gource..."
