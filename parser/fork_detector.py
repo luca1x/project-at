@@ -18,7 +18,6 @@ CHILD_REPOS = [
     "/Users/lucatl/audience-export",
     "/Users/lucatl/items",
     "/Users/lucatl/python-lib",
-    "/Users/lucatl/aggregation",
     "/Users/lucatl/utils",
     "/Users/lucatl/measurement-matching",
     "/Users/lucatl/segment-api",
