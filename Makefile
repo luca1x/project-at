@@ -18,7 +18,6 @@ PARSER_DIR = parser
 CONFIG_DIR = config
 VIS_DIR = visualization
 D3_DIR = $(VIS_DIR)/d3
-GOURCE_DIR = $(VIS_DIR)/other_eg_groute
 
 # --- File Paths ---
 PARSER_SCRIPT = $(PARSER_DIR)/parse.py
@@ -37,9 +36,7 @@ URL = $(HOST)/visualization/d3/index.html
 
 # --- Targets ---
 
-.PHONY: all poster data dates d3 gource clean help
-
-
+.PHONY: all poster data dates d3 clean help
 
 all: poster
 
@@ -51,7 +48,6 @@ poster: data d3 view
 	@echo "1. Data: $(JSON_OUTPUT)"
 	@echo "2. D3: Opening browser..."
 	@$(OPEN_CMD) $(HTML_FILE)
-	@echo "3. Gource: Launching window..."
 
 # 2. GENERATE CONFIG (Dates)
 dates: $(CONFIG_JSON)
@@ -98,10 +94,9 @@ view:
 	@python3 -m http.server $(PORT)
 	
 	sleep 0.5
-# 5. GOURCE
-gource:
-	@echo "🕸️ Launching Gource..."
-	gource --viewport 3840x2160 --transparent --hide-filenames --pause-at-end
+
+trivia: parser/trivia.py $(CONFIG_JSON)
+	python3 parser/trivia.py
 
 # CLEANUP
 clean:
