@@ -3,14 +3,15 @@ declare const d3: any;
 
 // --- CONFIGURATION ---
 
+// A1: 594 x 841 -> sqrt(2) ratio
 // CANVAS: 3000px for Graph + 1200px for Sidebar = 4200px Total Width
-const GRAPH_WIDTH = 3000;
-const SIDEBAR_WIDTH = 1200;
+const GRAPH_WIDTH = 2900;
+const SIDEBAR_WIDTH = 1300;
 const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
 const HEADER_HEIGHT = 600; 
-const HEIGHT = 5400 + HEADER_HEIGHT;
+const HEIGHT = 5340 + HEADER_HEIGHT;
 
-const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 50, left: 350 };
+const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 50, left: 450 };
 const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
 
 // --- COLORS ---
@@ -116,48 +117,85 @@ async function drawPoster() {
         .style("background", BG_COLOR)
         .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
 
-    const rawData = await d3.json("../../data/streamgraph_data.json");
+    // Load Data AND QR Code SVG concurrently
+    // We assume resources/qr.svg is relative to the build root, similar to ../../data
+    const [rawData, qrXml] = await Promise.all([
+        d3.json("../../data/streamgraph_data.json"),
+        d3.xml("../../resources/qr.svg").catch(() => null) // Handle error if file missing
+    ]);
+
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
 
-    drawHeader(svg);
+    drawHeader(svg, qrXml);
     await drawStreamgraph(svg, data);
     drawSidebar(svg, data);
 }
 
 // --- COMPONENT: HEADER ---
-function drawHeader(svg: any) {
+function drawHeader(svg: any, qrXml: any) {
     const g = svg.append("g").attr("class", "header");
     
+    // Title
     g.append("text")
         .attr("x", MARGIN.left) 
-        .attr("y", 325)
+        .attr("y", 350)
         .text("A Decade of Impact") 
-        // FONT CHANGE:
         .style("font-family", "'Futura', sans-serif") 
-        .attr("font-size", "210px") 
+        .attr("font-size", "225px") 
         .attr("font-weight", "700") 
         .attr("fill", TEXT_COLOR)
         .style("font-variant", "small-caps") 
         .style("letter-spacing", "8px");
     
+    // Subtitle
     g.append("text")
         .attr("x", MARGIN.left)
-        .attr("y", 425)
-        // Title Case here too
-        .text("ANDREAS TSCHOFEN • COMMIT HISTORY FROM 2016 TO 2026") 
+        .attr("y", 450)
+        .text("ANDREAS TSCHOFEN • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "50px")
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
         .style("letter-spacing", "6px");
 
+    // --- QR CODE EMBEDDING ---
+    if (qrXml) {
+        const qrSize = 300;
+        const qrX = WIDTH - MARGIN.right - qrSize - 80;
+        const qrY = 160;
+        
+        const qrGroup = g.append("g")
+            .attr("transform", `translate(${qrX}, ${qrY})`);
+
+        // 1. White Background Box (for contrast)
+        qrGroup.append("rect")
+            .attr("width", qrSize)
+            .attr("height", qrSize)
+            .attr("fill", "white");
+
+        // 2. Import External SVG Node
+        const importedNode = document.importNode(qrXml.documentElement, true);
+        
+        // 3. Scale & Pad the SVG to fit inside the box
+        // We add 20px padding (10px on each side) so the QR code doesn't touch the white edge
+        d3.select(importedNode)
+            .attr("width", qrSize - 20)
+            .attr("height", qrSize - 20)
+            .attr("x", 10)
+            .attr("y", 10);
+            
+        // Append the configured SVG to the group
+        qrGroup.node().appendChild(importedNode);
+    }
+
+    // Separator Line
     g.append("line")
         .attr("x1", MARGIN.left)
         .attr("y1", 550)
-        .attr("x2", WIDTH - 100) 
+        .attr("x2", WIDTH - 150) 
         .attr("y2", 550)
         .attr("stroke", SEPARATOR_COLOR)
-        .attr("stroke-width", 4);
+        .attr("stroke-width", 8);
 }
 
 // --- COMPONENT: STREAMGRAPH ---
@@ -169,7 +207,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
     const y = d3.scaleTime()
         .domain(d3.extent(data, (d: any) => d.dateObj))
         // Reduced bottom range slightly to keep graph tight
-        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 500]); 
+        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 250]); 
 
     const maxStack = d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]));
     const minStack = d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0]));
@@ -196,13 +234,13 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .data(EVENTS)
         .join("line")
         .attr("x1", MARGIN.left)
-        .attr("x2", GRAPH_WIDTH - MARGIN.right)
+        .attr("x2", GRAPH_WIDTH - MARGIN.right + 100)
         .attr("y1", (d: any) => y(parseDate(d.date)))
         .attr("y2", (d: any) => y(parseDate(d.date)))
         .attr("stroke", ACCENT_COLOR) 
-        .attr("stroke-width", 2) 
+        .attr("stroke-width", 3) 
         .attr("stroke-dasharray", "15,15")
-        .attr("opacity", 0.4);
+        .attr("opacity", 0.6);
 
     // Draw Streams
     svg.append("g").selectAll("path")
@@ -259,7 +297,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .data(EVENTS)
         .join("text")
         .attr("class", "event-label")
-        .attr("x", GRAPH_WIDTH - MARGIN.right) 
+        .attr("x", GRAPH_WIDTH - MARGIN.right + 100) 
         .attr("text-anchor", "end") 
         .attr("y", (d: any) => y(parseDate(d.date)))
         .attr("dy", "1.3em") 
@@ -296,7 +334,7 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("x1", 0) .attr("y1", -50)
         .attr("x2", 0) .attr("y2", HEIGHT - MARGIN.top - MARGIN.bottom)
         .attr("stroke", SEPARATOR_COLOR)
-        .attr("stroke-width", 2);
+        .attr("stroke-width", 8);
 
     let currentY = 50;
     
