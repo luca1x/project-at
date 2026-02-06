@@ -24,7 +24,6 @@ OUTPUT_FILE = os.path.join(SCRIPT_DIR, "..", "data", "streamgraph_data.json")
 OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
 OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
 
-
 def load_config():
     """Parses the JSON config file into a python dictionary."""
     if not os.path.exists(CONFIG_FILE):
@@ -63,7 +62,7 @@ def get_contributions_per_month(repo_path, author_pattern, start_date=None):
         "--format=%ai|%an %ae %cn %ce %b%x00", 
         "--no-decorate"
     ]
-        
+
     if start_date:
         cmd.append(f"--since={start_date}")
 

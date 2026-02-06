@@ -10,7 +10,7 @@ const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
 const HEADER_HEIGHT = 600; 
 const HEIGHT = 5400 + HEADER_HEIGHT;
 
-const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 80, left: 350 };
+const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 50, left: 350 };
 const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
 
 // --- COLORS ---
@@ -51,10 +51,10 @@ const parseDate = d3.timeParse("%Y-%m");
 
 // --- SIDEBAR DATA ---
 const STATS = [
-    { label: "Total Commits", value: "14,205" },
-    { label: "Coffees", value: "≈ 8,500" },
-    { label: "Lines Added", value: "1.2M+", color: "#daf6e6" }, 
-    { label: "Lines Deleted", value: "850K", color: "#ffdcd8" }
+    { label: "Total Commits", value: "14,205" }, // TODO
+    { label: "Coffees", value: "≈ 3,500" },
+    { label: "Lines Added", value: "1.2M+", color: "#daf6e6" },  // TODO 
+    { label: "Lines Deleted", value: "850K", color: "#ffdcd8" } // TODO 
 ];
 
 const TRIVIA = [
@@ -74,20 +74,7 @@ const TEAM_DATA = [
     { id: "Experiments", value: 400, color: "#ffa502" },     
 ];
 
-const QR_SVG_STRING = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="black">
-  <rect x="0" y="0" width="100" height="100" fill="white"/>
-  <path d="M10,10 h30 v30 h-30 z M15,15 v20 h20 v-20 z M20,20 h10 v10 h-10 z"/>
-  <path d="M60,10 h30 v30 h-30 z M65,15 v20 h20 v-20 z M70,20 h10 v10 h-10 z"/>
-  <path d="M10,60 h30 v30 h-30 z M15,65 v20 h20 v-20 z M20,70 h10 v10 h-10 z"/>
-  <path d="M50,10 h5 v5 h-5 z M55,15 h5 v5 h-5 z M50,20 h5 v5 h-5 z M90,50 h5 v5 h-5 z"/>
-  <path d="M45,45 h10 v10 h-10 z M55,55 h10 v10 h-10 z M65,45 h10 v10 h-10 z"/>
-  <path d="M50,50 h40 v40 h-40 z" opacity="0.5"/>
-  <rect x="55" y="55" width="5" height="5"/>
-  <rect x="75" y="75" width="5" height="5"/>
-  <rect x="60" y="80" width="5" height="5"/>
-</svg>
-`;
+
 // --- MEETING DATA ---
 // --- MANUAL MEETING DATA ---
 // TODO: EDIT THESE NUMBERS
@@ -112,8 +99,10 @@ const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
 }));
 
 const EVENTS = [
-    { date: "2019-01", label: "Realtime System", color: "#fff" },
+    { date: "2017-01", label: "Axel Springer", color: "#fff" },
+    { date: "2020-06", label: "Realtime System", color: "#fff" },
     { date: "2022-03", label: "Triplelift Acquisition", color: "#fff" },
+    { date: "2022-09", label: "US Datacenter Launch", color: "#fff" },
     { date: "2025-01", label: "AIS Team", color: "#fff" }
 ];
 
@@ -126,13 +115,6 @@ async function drawPoster() {
         .attr("xmlns", "http://www.w3.org/2000/svg")
         .style("background", BG_COLOR)
         .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
-
-    // --- IMPORT CUSTOM FONT (OSWALD) ---
-    // A tall, condensed Sans that looks powerful in Small Caps
-    svg.append("defs")
-        .append("style")
-        .attr("type", "text/css")
-        .text("@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');");
 
     const rawData = await d3.json("../../data/streamgraph_data.json");
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
@@ -168,32 +150,6 @@ function drawHeader(svg: any) {
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
         .style("letter-spacing", "6px");
-
-   // --- QR CODE (SVG EMBED) ---
-    const qrSize = 280;
-    const qrX = WIDTH - MARGIN.right - qrSize;
-    const qrY = 50;
-
-    // Create a group for the QR code
-    const qrGroup = g.append("g")
-        .attr("transform", `translate(${qrX}, ${qrY})`);
-
-    // 1. Draw White Background Box (Vectors need contrast too)
-    qrGroup.append("rect")
-        .attr("width", qrSize)
-        .attr("height", qrSize)
-        .attr("fill", "white");
-
-    // 2. Embed the SVG String
-    // We append a group, inject the HTML (SVG string), and then scale it to fit
-    const svgContent = qrGroup.append("g")
-        .html(QR_SVG_STRING);
-    
-    // 3. Auto-Scale Logic
-    // This assumes standard 100x100 viewBox in the placeholder. 
-    // If you paste a custom SVG, just tweak the scale: (qrSize / YOUR_SVG_VIEWBOX_SIZE)
-    svgContent.attr("transform", `scale(${qrSize / 10})`);
-
 
     g.append("line")
         .attr("x1", MARGIN.left)
