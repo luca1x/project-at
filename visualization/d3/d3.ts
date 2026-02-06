@@ -113,7 +113,7 @@ const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
 
 const EVENTS = [
     { date: "2019-01", label: "Realtime System", color: "#fff" },
-    { date: "2021-02", label: "Triplelift Acquisition", color: "#fff" },
+    { date: "2022-03", label: "Triplelift Acquisition", color: "#fff" },
     { date: "2025-01", label: "AIS Team", color: "#fff" }
 ];
 
@@ -162,7 +162,7 @@ function drawHeader(svg: any) {
         .attr("x", MARGIN.left)
         .attr("y", 425)
         // Title Case here too
-        .text("ANDREAS TSCHOFEN • COMMIT HISTORY FROM 2016 TO 2025") 
+        .text("ANDREAS TSCHOFEN • COMMIT HISTORY FROM 2016 TO 2026") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "50px")
         .attr("font-weight", "bold")
