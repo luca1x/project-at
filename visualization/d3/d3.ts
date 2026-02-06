@@ -7,9 +7,8 @@ declare const d3: any;
 const GRAPH_WIDTH = 3000;
 const SIDEBAR_WIDTH = 1200;
 const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
-// Increased HEIGHT slightly to accommodate the new Header
-const HEADER_HEIGHT = 400; 
-const HEIGHT = 4000 + HEADER_HEIGHT;
+const HEADER_HEIGHT = 600; 
+const HEIGHT = 5400 + HEADER_HEIGHT;
 
 const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 80, left: 350 };
 const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
@@ -38,7 +37,8 @@ const FALLBACK_COLORS = [
     "#B5838D", // Old Rose
     "#937860", // Coffee Brown
     "#C44E52"  // Muted Red
-];
+]
+
 
 const BG_COLOR = "#1a1a1a";
 const TEXT_COLOR = "#ffffff";
@@ -49,24 +49,54 @@ const SEPARATOR_COLOR = "#333333";
 // --- GLOBAL HELPERS ---
 const parseDate = d3.timeParse("%Y-%m");
 
-// --- DUMMY DATA FOR SIDEBAR ---
+// --- SIDEBAR DATA ---
 const STATS = [
     { label: "Total Commits", value: "14,205" },
-    { label: "Lines Added", value: "1.2M+" },
-    { label: "Active Days", value: "3,402" },
-    { label: "Coffees", value: "≈ 8,500" }
+    { label: "Coffees", value: "≈ 8,500" },
+    { label: "Lines Added", value: "1.2M+", color: "#daf6e6" }, 
+    { label: "Lines Deleted", value: "850K", color: "#ffdcd8" }
 ];
 
 const TRIVIA = [
     { question: "Most Productive Day", answer: "Tuesday" },
-    { question: "Least Productive Year", answer: "2018" },
     { question: "Most Used Commit Msg", answer: "'fix typo'" },
-    { question: "Longest Streak", answer: "42 Days" },
+    { question: "Least Productive Year", answer: "2018" },
+    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" },
+    { question: "Mentored / Inspired", answer: "14 Devs" },
 ];
 
-const FEATURED_REPOS = ["production", "profile-api", "python-lib"];
+const TEAM_DATA = [
+    { id: "AIS Team", value: 3500, color: "#00f2c3" },       
+    { id: "AC (Ads)", value: 2800, color: "#00d2ff" },       
+    { id: "Maintenance", value: 1500, color: "#bdc3c7" },    
+    { id: "Unknown", value: 800, color: "#8e44ad" },         
+    { id: "Refactor", value: 1200, color: "#ff4757" },       
+    { id: "Experiments", value: 400, color: "#ffa502" },     
+];
 
-// --- EVENTS ---
+// --- MEETING DATA ---
+// --- MANUAL MEETING DATA ---
+// TODO: EDIT THESE NUMBERS
+const RAW_MEETINGS_DATA = [
+    { year: 2016, value: 400 },
+    { year: 2017, value: 500 },
+    { year: 2018, value: 600 },
+    { year: 2019, value: 500 },
+    { year: 2020, value: 800 },
+    { year: 2021, value: 1500 },
+    { year: 2022, value: 1500 },
+    { year: 2023, value: 3000 },
+    { year: 2024, value: 3500 },
+    { year: 2025, value: 3000 },
+    { year: 2026, value: 90 }
+];
+
+// Convert plain numbers to Date objects for D3
+const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
+    year: new Date(d.year, 0, 1),
+    value: d.value
+}));
+
 const EVENTS = [
     { date: "2016-01", label: "First Commit", color: "#fff" }, 
     { date: "2019-01", label: "Realtime System", color: "#fff" },
@@ -84,6 +114,13 @@ async function drawPoster() {
         .style("background", BG_COLOR)
         .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
 
+    // --- IMPORT CUSTOM FONT (OSWALD) ---
+    // A tall, condensed Sans that looks powerful in Small Caps
+    svg.append("defs")
+        .append("style")
+        .attr("type", "text/css")
+        .text("@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');");
+
     const rawData = await d3.json("../../data/streamgraph_data.json");
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
 
@@ -96,32 +133,33 @@ async function drawPoster() {
 function drawHeader(svg: any) {
     const g = svg.append("g").attr("class", "header");
     
-    // Main Title
     g.append("text")
         .attr("x", MARGIN.left) 
-        .attr("y", 200)
-        .text("12 YEARS OF CODE")
-        .attr("font-size", "140px")
-        .attr("font-weight", "900")
+        .attr("y", 325)
+        .text("A Decade of Impact") 
+        // FONT CHANGE:
+        .style("font-family", "'Futura', sans-serif") 
+        .attr("font-size", "170px") // Oswald is tall/condensed, so we can go BIG
+        .attr("font-weight", "700") 
         .attr("fill", TEXT_COLOR)
-        .style("letter-spacing", "10px");
-
-    // Subtitle
+        .style("font-variant", "small-caps") 
+        .style("letter-spacing", "8px");
     g.append("text")
         .attr("x", MARGIN.left)
-        .attr("y", 300)
-        .text("ANDREAS TSCHOFEN • COMMIT HISTORY 2012–2025")
-        .attr("font-size", "48px")
+        .attr("y", 425)
+        // Title Case here too
+        .text("ANDREAS TSCHOFEN • COMMIT HISTORY FROM 2016 TO 2025") 
+        .style("font-family", "'Futura', sans-serif") 
+        .attr("font-size", "50px")
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
         .style("letter-spacing", "6px");
 
-    // Horizontal Separator Line (Spanning Full Width)
     g.append("line")
         .attr("x1", MARGIN.left)
-        .attr("y1", 380)
-        .attr("x2", WIDTH - 100) // Leave a small margin on the right
-        .attr("y2", 380)
+        .attr("y1", 550)
+        .attr("x2", WIDTH - 100) 
+        .attr("y2", 550)
         .attr("stroke", SEPARATOR_COLOR)
         .attr("stroke-width", 4);
 }
@@ -132,10 +170,10 @@ async function drawStreamgraph(svg: any, data: any[]) {
     const stack = d3.stack().keys(keys).offset(d3.stackOffsetWiggle).order(d3.stackOrderInsideOut);
     const series = stack(data);
 
-    // Scales
     const y = d3.scaleTime()
         .domain(d3.extent(data, (d: any) => d.dateObj))
-        .range([MARGIN.top, HEIGHT - MARGIN.bottom]);
+        // Reduced bottom range slightly to keep graph tight
+        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 500]); 
 
     const maxStack = d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]));
     const minStack = d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0]));
@@ -180,7 +218,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("stroke-width", 1.5)
         .attr("opacity", 1);
 
-    // Labels with Collision Logic
+    // Labels
     const labelsLayer = svg.append("g").attr("class", "labels");
     const labelData = series.map((d: any) => {
         let maxDiff = 0;
@@ -259,7 +297,7 @@ function drawSidebar(svg: any, fullData: any[]) {
 
     // Separator Line
     g.append("line")
-        .attr("x1", 0) .attr("y1", -50) // Extend up slightly to meet the header line visually
+        .attr("x1", 0) .attr("y1", -50)
         .attr("x2", 0) .attr("y2", HEIGHT - MARGIN.top - MARGIN.bottom)
         .attr("stroke", SEPARATOR_COLOR)
         .attr("stroke-width", 2);
@@ -270,23 +308,24 @@ function drawSidebar(svg: any, fullData: any[]) {
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("LIFETIME STATS")
-        .attr("font-size", "36px") 
+        .attr("font-size", "40px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
 
     currentY += 100;
 
-    STATS.forEach((stat, i) => {
+    STATS.forEach((stat: any, i) => {
         const xOffset = 80 + (i % 2) * 450; 
         const yOffset = currentY + Math.floor(i / 2) * 180;
-        
+        const valColor = stat.color ? stat.color : TEXT_COLOR;
+
         g.append("text")
             .attr("x", xOffset).attr("y", yOffset)
             .text(stat.value)
             .attr("font-size", "72px") 
             .attr("font-weight", "800")
-            .attr("fill", TEXT_COLOR);
+            .attr("fill", valColor);
         
         g.append("text")
             .attr("x", xOffset).attr("y", yOffset + 45)
@@ -296,13 +335,14 @@ function drawSidebar(svg: any, fullData: any[]) {
             .style("letter-spacing", "1px");
     });
 
-    currentY += 450;
+    // Reduced gap to fit more sections
+    currentY += 380; 
 
     // --- SECTION 2: TRIVIA ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("TRIVIA")
-        .attr("font-size", "36px")
+        .attr("font-size", "40px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -313,78 +353,148 @@ function drawSidebar(svg: any, fullData: any[]) {
         g.append("text")
             .attr("x", 80).attr("y", currentY + (i * 140))
             .text(item.question)
-            .attr("font-size", "28px") 
+            .attr("font-size", "32px") 
             .attr("fill", SUB_TEXT_COLOR);
 
         g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 140) + 40)
+            .attr("x", 80).attr("y", currentY + (i * 140) + 50)
             .text(item.answer)
             .attr("font-size", "42px") 
             .attr("font-weight", "bold")
             .attr("fill", TEXT_COLOR);
     });
 
-    currentY += 650;
+    // Reduced gap
+    currentY += (TRIVIA.length * 140) + 100;
 
-    // --- SECTION 3: TOP REPOS ---
+    // --- SECTION 3: TEAM BUBBLES ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
-        .text("KEY REPO GROWTH")
+        .text("COMMIT TYPES & TEAMS")
+        .attr("font-size", "40px")
+        .attr("font-weight", "bold")
+        .attr("fill", ACCENT_COLOR)
+        .style("letter-spacing", "3px");
+    
+    currentY += 80;
+
+    const bubbleSize = 900; 
+    const root = d3.hierarchy({ children: TEAM_DATA }).sum((d: any) => d.value);
+    const pack = d3.pack().size([bubbleSize, bubbleSize]).padding(20);
+    const rootNode = pack(root);
+
+    const bubbles = g.append("g").attr("transform", `translate(80, ${currentY})`);
+    const nodes = bubbles.selectAll(".node")
+        .data(rootNode.leaves())
+        .join("g")
+        .attr("class", "node")
+        .attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
+
+    // Glass/HUD Style
+    nodes.append("circle")
+        .attr("r", (d: any) => d.r)
+        .attr("fill", (d: any) => d.data.color)
+        .attr("fill-opacity", 0.2) 
+        .attr("stroke", (d: any) => d.data.color)
+        .attr("stroke-width", 4); 
+
+    nodes.append("text")
+        .attr("dy", "-0.2em")
+        .style("text-anchor", "middle")
+        .text((d: any) => d.data.id)
+        .attr("font-size", (d: any) => Math.min(2 * d.r / d.data.id.length * 1.5, 48) + "px")
+        .attr("font-weight", "bold")
+        .attr("fill", "white")
+        .style("pointer-events", "none")
+        .style("text-shadow", "0px 2px 8px rgba(0,0,0,0.8)"); 
+
+    nodes.append("text")
+        .attr("dy", "1.2em")
+        .style("text-anchor", "middle")
+        .text((d: any) => d3.format(",")(d.data.value))
+        .attr("font-size", (d: any) => Math.min(d.r / 3, 32) + "px")
+        .attr("fill", "rgba(255,255,255,0.9)")
+        .style("pointer-events", "none");
+
+    currentY += bubbleSize + 120; // Move down
+
+    // --- SECTION 4: MEETINGS GRAPH ---
+    g.append("text")
+        .attr("x", 80).attr("y", currentY)
+        .text("MEETINGS ATTENDED")
         .attr("font-size", "36px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
     
-    currentY += 120;
+    currentY += 60;
 
-    const getColor = (key: string) => REPO_COLORS[key] || "#999";
+    const graphHeight = 350;
+    const graphWidth = 900;
+    const graphG = g.append("g").attr("transform", `translate(80, ${currentY})`);
 
-    FEATURED_REPOS.forEach((repoKey, i) => {
-        const plotHeight = 220; 
-        const plotWidth = 800;
-        const yPos = currentY + (i * (plotHeight + 100));
+    const mX = d3.scaleTime()
+        .domain(d3.extent(MEETINGS_DATA, (d: any) => d.year))
+        .range([0, graphWidth]);
+    
+    const mY = d3.scaleLinear()
+        .domain([0, d3.max(MEETINGS_DATA, (d: any) => d.value)])
+        .range([graphHeight, 0]);
 
-        g.append("text")
-            .attr("x", 80).attr("y", yPos - 20)
-            .text(repoKey)
-            .attr("font-size", "36px") 
-            .attr("font-weight", "bold")
-            .attr("fill", getColor(repoKey));
+    const mArea = d3.area()
+        .x((d: any) => mX(d.year))
+        .y0(graphHeight)
+        .y1((d: any) => mY(d.value))
+        .curve(d3.curveStepAfter);
 
-        // Background
-        g.append("rect")
-            .attr("x", 80).attr("y", yPos)
-            .attr("width", plotWidth).attr("height", plotHeight)
-            .attr("fill", "#222").attr("rx", 15);
+    graphG.append("path")
+        .datum(MEETINGS_DATA)
+        .attr("fill", "#e74c3c")
+        .attr("fill-opacity", 0.6)
+        .attr("stroke", "#e74c3c")
+        .attr("stroke-width", 3)
+        .attr("d", mArea);
 
-        // Plot
-        const repoData = fullData.map((d: any) => ({ date: d.dateObj, value: d[repoKey] || 0 }));
-        const miniX = d3.scaleTime()
-            .domain(d3.extent(repoData, (d: any) => d.date))
-            .range([80, 80 + plotWidth]);
-        const miniY = d3.scaleLinear()
-            .domain([0, d3.max(repoData, (d: any) => d.value)])
-            .range([yPos + plotHeight, yPos + 15]);
+    graphG.append("line")
+        .attr("x1", 0).attr("y1", graphHeight)
+        .attr("x2", graphWidth).attr("y2", graphHeight)
+        .attr("stroke", "#666").attr("stroke-width", 2);
 
-        const miniArea = d3.area()
-            .x((d: any) => miniX(d.date))
-            .y0(yPos + plotHeight)
-            .y1((d: any) => miniY(d.value))
-            .curve(d3.curveMonotoneX);
+    // --- NEW: START / END LABELS ---
+    graphG.append("text")
+        .attr("x", 0).attr("y", graphHeight + 40)
+        .text("2016")
+        .attr("font-size", "28px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#666");
 
-        g.append("path")
-            .datum(repoData)
-            .attr("fill", getColor(repoKey)).attr("fill-opacity", 0.6)
-            .attr("stroke", getColor(repoKey)).attr("stroke-width", 3)
-            .attr("d", miniArea);
-    });
+    graphG.append("text")
+        .attr("x", graphWidth).attr("y", graphHeight + 40)
+        .attr("text-anchor", "end") // Align right
+        .text("2026")
+        .attr("font-size", "28px")
+        .attr("font-weight", "bold")
+        .attr("fill", "#666");
+
+    currentY += graphHeight + 200; // Final large gap for signature space
+
+    // --- FINAL FOOTER ---
+    g.append("text")
+        .attr("x", SIDEBAR_WIDTH / 2 - 50) 
+        .attr("y", currentY)
+        .attr("text-anchor", "middle")
+        .text("Thank you for everything!")
+        .attr("font-size", "50")
+        .attr("font-weight", "900")
+        .attr("fill", TEXT_COLOR)
+        .style("letter-spacing", "6px");
 }
 
 // --- BUTTON HELPER ---
 setTimeout(() => {
     d3.select("#save-btn").on("click", () => {
         const svgNode = document.querySelector("#chart svg");
-        saveSvg(svgNode, "tschofen_infographic.svg");
+        saveSvg(svgNode, "tschofen_infographic_final.svg");
     });
 }, 500);
 
