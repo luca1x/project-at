@@ -60,9 +60,9 @@ const STATS = [
 const TRIVIA = [
     { question: "Most Productive Day", answer: "Tuesday" },
     { question: "Most Used Commit Msg", answer: "'fix typo'" },
-    { question: "Least Productive Year", answer: "2018" },
+    { question: "Most \"Productive\" Year", answer: "2020" },
     { question: "Cereal Bowls Consumed", answer: "≈ 2,400" },
-    { question: "Mentored / Inspired", answer: "14 Devs" },
+    { question: "Mentored / Inspired", answer: "18 Devs" },
 ];
 
 const TEAM_DATA = [
@@ -112,7 +112,6 @@ const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
 }));
 
 const EVENTS = [
-    { date: "2016-01", label: "First Commit", color: "#fff" }, 
     { date: "2019-01", label: "Realtime System", color: "#fff" },
     { date: "2021-02", label: "Triplelift Acquisition", color: "#fff" },
     { date: "2025-01", label: "AIS Team", color: "#fff" }
