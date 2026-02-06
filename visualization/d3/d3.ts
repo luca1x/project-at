@@ -152,7 +152,7 @@ function drawHeader(svg: any) {
         .text("A Decade of Impact") 
         // FONT CHANGE:
         .style("font-family", "'Futura', sans-serif") 
-        .attr("font-size", "170px") // Oswald is tall/condensed, so we can go BIG
+        .attr("font-size", "210px") 
         .attr("font-weight", "700") 
         .attr("fill", TEXT_COLOR)
         .style("font-variant", "small-caps") 
