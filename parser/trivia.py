@@ -8,8 +8,11 @@ from datetime import datetime
 
 # --- CONFIGURATION ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Assumes repo_config.json is in the parent directory (or use ../config/repo_config.json)
+# Assumes repo_config.json is in the parent directory
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "..", "config", "repo_config.json") 
+
+# Filter config (Regex to match Author Name or Email)
+AUTHOR_REGEX = r"tschofen|atschofen"
 
 def load_config():
     """Parses the JSON config file into a python dictionary."""
@@ -28,7 +31,8 @@ def load_config():
 
 def get_commits_from_repo(repo_path, start_date):
     """
-    Runs git log to get commit hash, date, message, and numstat (lines added/deleted).
+    Runs git log to get commit hash, date, message, author, and numstat.
+    Filters commits based on AUTHOR_REGEX.
     """
     cwd = os.getcwd()
     try:
@@ -41,10 +45,11 @@ def get_commits_from_repo(repo_path, start_date):
         os.chdir(abs_repo_path)
         
         # Git command
+        # Added %an (Author Name) and %ae (Author Email) to the format
         cmd = [
             'git', 'log',
             f'--since={start_date}',
-            '--pretty=format:COMMIT_MARKER|%h|%aD|%s',
+            '--pretty=format:COMMIT_MARKER|%h|%aD|%an|%ae|%s',
             '--numstat'
         ]
         
@@ -53,18 +58,28 @@ def get_commits_from_repo(repo_path, start_date):
         
         parsed_commits = []
         current_commit = None
+        
+        # Pre-compile regex for performance
+        auth_pattern = re.compile(AUTHOR_REGEX, re.IGNORECASE)
 
         for line in result.split('\n'):
             line = line.strip()
             if not line: continue
 
             if line.startswith('COMMIT_MARKER|'):
-                # New commit starts
-                parts = line.split('|', 3)
-                if len(parts) < 4: continue
+                # New commit line found
+                # Split by pipe, maxsplit=5 to handle pipes in commit message safely
+                parts = line.split('|', 5)
+                if len(parts) < 6: continue
                 
-                _, h, date_str, msg = parts
+                _, h, date_str, author_name, author_email, msg = parts
                 
+                # --- AUTHOR CHECK ---
+                # If author doesn't match, set current_commit to None so we skip the numstats
+                if not (auth_pattern.search(author_name) or auth_pattern.search(author_email)):
+                    current_commit = None
+                    continue
+
                 # Parse Day of Week
                 try:
                     day_abbr = date_str.split(',')[0] # "Fri"
@@ -81,9 +96,11 @@ def get_commits_from_repo(repo_path, start_date):
                 parsed_commits.append(current_commit)
             
             elif current_commit:
+                # If we have a valid current_commit (meaning author matched), process stats
                 parts = line.split()
                 if len(parts) >= 3:
                     add, rem = parts[0], parts[1]
+                    # Binary files return '-'
                     if add != '-': current_commit['added'] += int(add)
                     if rem != '-': current_commit['deleted'] += int(rem)
 
@@ -148,25 +165,25 @@ def analyze_data(all_commits):
 
 def main():
     print("--- 🚀 STARTING TRIVIA EXTRACTION ---")
+    print(f"🔎 Filtering for authors matching: '{AUTHOR_REGEX}'")
+    
     repos = load_config()
     all_commits = []
 
-    # --- UPDATED LOOP FOR FLAT DICTIONARY ---
-    # Structure: { "/path/to/repo": "YYYY-MM-DD", ... }
+    # Iterate over flat dictionary {path: date}
     for repo_path, start_date in repos.items():
-        name = os.path.basename(repo_path) # Extract folder name (e.g. 'production')
+        name = os.path.basename(repo_path)
         
-        # Handle null dates (default to early date)
         if not start_date:
             start_date = '2012-01-01'
         
         print(f"Processing {name}...")
         repo_commits = get_commits_from_repo(repo_path, start_date)
-        print(f"  -> Found {len(repo_commits)} commits.")
+        print(f"  -> Found {len(repo_commits)} matching commits.")
         all_commits.extend(repo_commits)
 
     if not all_commits:
-        print("\n⚠️ No commits found in any repositories. Check paths and start dates.")
+        print("\n⚠️ No commits found in any repositories. Check paths, start dates, or author regex.")
         sys.exit(0)
 
     print("\n--- 📊 ANALYZING DATA ---")
@@ -193,10 +210,9 @@ const STATS = [
 const TRIVIA = [
     {{ question: "Most Productive Day", answer: "{stats['most_productive_day']}" }},
     {{ question: "Most Used Commit Msg", answer: "'{stats['most_used_message']}'" }},
-    {{ question: "Longest Streak", answer: "42 Days" }},
-    {{ question: "Least Productive Year", answer: "2018" }},
+    {{ question: "Most \\"Productive\\" Year", answer: "2020" }}, // Requires yearly grouping
     {{ question: "Cereal Bowls Consumed", answer: "≈ 2,400" }},
-    {{ question: "Mentored / Inspired", answer: "14 Devs" }},
+    {{ question: "Mentored / Inspired", answer: "18 Devs" }},
 ];
 
 // Top 6 Teams/Prefixes
