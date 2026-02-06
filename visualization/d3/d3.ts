@@ -74,21 +74,35 @@ const TEAM_DATA = [
     { id: "Experiments", value: 400, color: "#ffa502" },     
 ];
 
+const QR_SVG_STRING = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="black">
+  <rect x="0" y="0" width="100" height="100" fill="white"/>
+  <path d="M10,10 h30 v30 h-30 z M15,15 v20 h20 v-20 z M20,20 h10 v10 h-10 z"/>
+  <path d="M60,10 h30 v30 h-30 z M65,15 v20 h20 v-20 z M70,20 h10 v10 h-10 z"/>
+  <path d="M10,60 h30 v30 h-30 z M15,65 v20 h20 v-20 z M20,70 h10 v10 h-10 z"/>
+  <path d="M50,10 h5 v5 h-5 z M55,15 h5 v5 h-5 z M50,20 h5 v5 h-5 z M90,50 h5 v5 h-5 z"/>
+  <path d="M45,45 h10 v10 h-10 z M55,55 h10 v10 h-10 z M65,45 h10 v10 h-10 z"/>
+  <path d="M50,50 h40 v40 h-40 z" opacity="0.5"/>
+  <rect x="55" y="55" width="5" height="5"/>
+  <rect x="75" y="75" width="5" height="5"/>
+  <rect x="60" y="80" width="5" height="5"/>
+</svg>
+`;
 // --- MEETING DATA ---
 // --- MANUAL MEETING DATA ---
 // TODO: EDIT THESE NUMBERS
 const RAW_MEETINGS_DATA = [
-    { year: 2016, value: 400 },
-    { year: 2017, value: 500 },
-    { year: 2018, value: 600 },
-    { year: 2019, value: 500 },
-    { year: 2020, value: 800 },
-    { year: 2021, value: 1500 },
-    { year: 2022, value: 1500 },
-    { year: 2023, value: 3000 },
-    { year: 2024, value: 3500 },
-    { year: 2025, value: 3000 },
-    { year: 2026, value: 90 }
+    { year: 2016, value: 500 },
+    { year: 2017, value: 550 },
+    { year: 2018, value: 690 },
+    { year: 2019, value: 890 },
+    { year: 2020, value: 1285 },
+    { year: 2021, value: 1590 },
+    { year: 2022, value: 1355 },
+    { year: 2023, value: 1576 },
+    { year: 2024, value: 1782 },
+    { year: 2025, value: 1567 },
+    { year: 2026, value: 96 }
 ];
 
 // Convert plain numbers to Date objects for D3
@@ -100,7 +114,7 @@ const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
 const EVENTS = [
     { date: "2016-01", label: "First Commit", color: "#fff" }, 
     { date: "2019-01", label: "Realtime System", color: "#fff" },
-    { date: "2021-02", label: "Acquisition by Triplelift", color: "#fff" },
+    { date: "2021-02", label: "Triplelift Acquisition", color: "#fff" },
     { date: "2025-01", label: "AIS Team", color: "#fff" }
 ];
 
@@ -144,6 +158,7 @@ function drawHeader(svg: any) {
         .attr("fill", TEXT_COLOR)
         .style("font-variant", "small-caps") 
         .style("letter-spacing", "8px");
+    
     g.append("text")
         .attr("x", MARGIN.left)
         .attr("y", 425)
@@ -154,6 +169,32 @@ function drawHeader(svg: any) {
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
         .style("letter-spacing", "6px");
+
+   // --- QR CODE (SVG EMBED) ---
+    const qrSize = 280;
+    const qrX = WIDTH - MARGIN.right - qrSize;
+    const qrY = 50;
+
+    // Create a group for the QR code
+    const qrGroup = g.append("g")
+        .attr("transform", `translate(${qrX}, ${qrY})`);
+
+    // 1. Draw White Background Box (Vectors need contrast too)
+    qrGroup.append("rect")
+        .attr("width", qrSize)
+        .attr("height", qrSize)
+        .attr("fill", "white");
+
+    // 2. Embed the SVG String
+    // We append a group, inject the HTML (SVG string), and then scale it to fit
+    const svgContent = qrGroup.append("g")
+        .html(QR_SVG_STRING);
+    
+    // 3. Auto-Scale Logic
+    // This assumes standard 100x100 viewBox in the placeholder. 
+    // If you paste a custom SVG, just tweak the scale: (qrSize / YOUR_SVG_VIEWBOX_SIZE)
+    svgContent.attr("transform", `scale(${qrSize / 10})`);
+
 
     g.append("line")
         .attr("x1", MARGIN.left)
@@ -250,7 +291,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("class", "repo-label")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .style("font-size", "42px") 
+        .style("font-size", "48px") 
         .style("font-weight", "bold") 
         .style("fill", "white")
         .style("pointer-events", "none")
@@ -269,7 +310,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("dy", "1.3em") 
         .text((d: any) => d.label)
         .attr("fill", ACCENT_COLOR)
-        .attr("font-size", "32px") 
+        .attr("font-size", "50px") 
         .attr("font-weight", "bold")
         .style("letter-spacing", "1px")
         .style("text-shadow", "0px 2px 5px rgba(0,0,0,0.8)"); 
@@ -286,7 +327,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .call(yAxis)
         .call((g: any) => g.select(".domain").remove())
         .selectAll("text")
-        .attr("font-size", "48px") 
+        .attr("font-size", "56px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR);
 }
@@ -308,7 +349,7 @@ function drawSidebar(svg: any, fullData: any[]) {
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("LIFETIME STATS")
-        .attr("font-size", "40px") 
+        .attr("font-size", "54px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -328,21 +369,21 @@ function drawSidebar(svg: any, fullData: any[]) {
             .attr("fill", valColor);
         
         g.append("text")
-            .attr("x", xOffset).attr("y", yOffset + 45)
+            .attr("x", xOffset).attr("y", yOffset + 55)
             .text(stat.label.toUpperCase())
-            .attr("font-size", "24px") 
+            .attr("font-size", "30px") 
             .attr("fill", SUB_TEXT_COLOR)
             .style("letter-spacing", "1px");
     });
 
     // Reduced gap to fit more sections
-    currentY += 380; 
+    currentY += 450; 
 
     // --- SECTION 2: TRIVIA ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("TRIVIA")
-        .attr("font-size", "40px")
+        .attr("font-size", "54px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -353,25 +394,25 @@ function drawSidebar(svg: any, fullData: any[]) {
         g.append("text")
             .attr("x", 80).attr("y", currentY + (i * 140))
             .text(item.question)
-            .attr("font-size", "32px") 
+            .attr("font-size", "40px") 
             .attr("fill", SUB_TEXT_COLOR);
 
         g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 140) + 50)
+            .attr("x", 80).attr("y", currentY + (i * 140) + 60)
             .text(item.answer)
-            .attr("font-size", "42px") 
+            .attr("font-size", "48px") 
             .attr("font-weight", "bold")
             .attr("fill", TEXT_COLOR);
     });
 
     // Reduced gap
-    currentY += (TRIVIA.length * 140) + 100;
+    currentY += (TRIVIA.length * 140) + 130;
 
     // --- SECTION 3: TEAM BUBBLES ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("COMMIT TYPES & TEAMS")
-        .attr("font-size", "40px")
+        .attr("font-size", "54px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -416,13 +457,13 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("fill", "rgba(255,255,255,0.9)")
         .style("pointer-events", "none");
 
-    currentY += bubbleSize + 120; // Move down
+    currentY += bubbleSize + 200; // Move down
 
     // --- SECTION 4: MEETINGS GRAPH ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("MEETINGS ATTENDED")
-        .attr("font-size", "36px")
+        .attr("font-size", "54px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -464,7 +505,7 @@ function drawSidebar(svg: any, fullData: any[]) {
     graphG.append("text")
         .attr("x", 0).attr("y", graphHeight + 40)
         .text("2016")
-        .attr("font-size", "28px")
+        .attr("font-size", "33px")
         .attr("font-weight", "bold")
         .attr("fill", "#666");
 
@@ -472,11 +513,11 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("x", graphWidth).attr("y", graphHeight + 40)
         .attr("text-anchor", "end") // Align right
         .text("2026")
-        .attr("font-size", "28px")
+        .attr("font-size", "33px")
         .attr("font-weight", "bold")
         .attr("fill", "#666");
 
-    currentY += graphHeight + 200; // Final large gap for signature space
+    currentY += graphHeight + 250; // Final large gap for signature space
 
     // --- FINAL FOOTER ---
     g.append("text")
@@ -484,7 +525,7 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("y", currentY)
         .attr("text-anchor", "middle")
         .text("Thank you for everything!")
-        .attr("font-size", "50")
+        .attr("font-size", "55")
         .attr("font-weight", "900")
         .attr("fill", TEXT_COLOR)
         .style("letter-spacing", "6px");
