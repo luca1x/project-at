@@ -4,13 +4,14 @@ declare const d3: any;
 // --- CONFIGURATION ---
 
 // CANVAS: 3000px for Graph + 1200px for Sidebar = 4200px Total Width
-// (Slightly reduced sidebar width to balance the new font sizes)
 const GRAPH_WIDTH = 3000;
 const SIDEBAR_WIDTH = 1200;
 const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
-const HEIGHT = 4000;
+// Increased HEIGHT slightly to accommodate the new Header
+const HEADER_HEIGHT = 400; 
+const HEIGHT = 4000 + HEADER_HEIGHT;
 
-const MARGIN = { top: 150, right: 100, bottom: 80, left: 350 };
+const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 80, left: 350 };
 const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
 
 // --- COLORS ---
@@ -27,24 +28,28 @@ const REPO_COLORS: { [key: string]: string } = {
 };
 
 const FALLBACK_COLORS = [
-    "#6D597A", // Deep Purple (Missing from your main list, great contrast)
-    "#F4A261", // Sandy Orange (Softer than your frontend orange)
-    "#8AB17D", // Sage Green ( Distinct from your Teal)
-    "#E76F51", // Burnt Sienna (Earthy red-orange)
-    "#535154", // Charcoal Grey (Good for "boring" utility repos)
+    "#6D597A", // Deep Purple
+    "#F4A261", // Sandy Orange
+    "#8AB17D", // Sage Green
+    "#E76F51", // Burnt Sienna
+    "#535154", // Charcoal Grey
     "#8172B3", // Soft Lavender
     "#948B3D", // Olive Green
-    "#B5838D", // Old Rose (Lighter/Softer than segment-api)
+    "#B5838D", // Old Rose
     "#937860", // Coffee Brown
     "#C44E52"  // Muted Red
-]
+];
 
 const BG_COLOR = "#1a1a1a";
 const TEXT_COLOR = "#ffffff";
 const SUB_TEXT_COLOR = "#aaaaaa";
 const ACCENT_COLOR = "#cccccc";
+const SEPARATOR_COLOR = "#333333";
 
-// --- DUMMY DATA FOR SIDEBAR (To be filled later) ---
+// --- GLOBAL HELPERS ---
+const parseDate = d3.timeParse("%Y-%m");
+
+// --- DUMMY DATA FOR SIDEBAR ---
 const STATS = [
     { label: "Total Commits", value: "14,205" },
     { label: "Lines Added", value: "1.2M+" },
@@ -69,8 +74,6 @@ const EVENTS = [
     { date: "2025-01", label: "AIS Team", color: "#fff" }
 ];
 
-const parseDate = d3.timeParse("%Y-%m");
-
 // --- MAIN RENDER FUNCTION ---
 async function drawPoster() {
     d3.select("#chart").html(""); 
@@ -84,8 +87,43 @@ async function drawPoster() {
     const rawData = await d3.json("../../data/streamgraph_data.json");
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
 
+    drawHeader(svg);
     await drawStreamgraph(svg, data);
     drawSidebar(svg, data);
+}
+
+// --- COMPONENT: HEADER ---
+function drawHeader(svg: any) {
+    const g = svg.append("g").attr("class", "header");
+    
+    // Main Title
+    g.append("text")
+        .attr("x", MARGIN.left) 
+        .attr("y", 200)
+        .text("12 YEARS OF CODE")
+        .attr("font-size", "140px")
+        .attr("font-weight", "900")
+        .attr("fill", TEXT_COLOR)
+        .style("letter-spacing", "10px");
+
+    // Subtitle
+    g.append("text")
+        .attr("x", MARGIN.left)
+        .attr("y", 300)
+        .text("ANDREAS TSCHOFEN • COMMIT HISTORY 2012–2025")
+        .attr("font-size", "48px")
+        .attr("font-weight", "bold")
+        .attr("fill", SUB_TEXT_COLOR)
+        .style("letter-spacing", "6px");
+
+    // Horizontal Separator Line (Spanning Full Width)
+    g.append("line")
+        .attr("x1", MARGIN.left)
+        .attr("y1", 380)
+        .attr("x2", WIDTH - 100) // Leave a small margin on the right
+        .attr("y2", 380)
+        .attr("stroke", SEPARATOR_COLOR)
+        .attr("stroke-width", 4);
 }
 
 // --- COMPONENT: STREAMGRAPH ---
@@ -128,7 +166,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("y1", (d: any) => y(parseDate(d.date)))
         .attr("y2", (d: any) => y(parseDate(d.date)))
         .attr("stroke", ACCENT_COLOR) 
-        .attr("stroke-width", 2) // Thinner lines
+        .attr("stroke-width", 2) 
         .attr("stroke-dasharray", "15,15")
         .attr("opacity", 0.4);
 
@@ -155,7 +193,6 @@ async function drawStreamgraph(svg: any, data: any[]) {
     }).sort((a: any, b: any) => b.size - a.size);
 
     const placedLabels: any[] = [];
-    // Tighter constraints for smaller fonts
     const MIN_LABEL_DIST_Y = 60; 
     const MIN_LABEL_DIST_X = 100;
 
@@ -175,8 +212,8 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("class", "repo-label")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .style("font-size", "42px") // <--- REDUCED from 70px
-        .style("font-weight", "bold") // "Bold" instead of "900" is cleaner
+        .style("font-size", "42px") 
+        .style("font-weight", "bold") 
         .style("fill", "white")
         .style("pointer-events", "none")
         .style("text-shadow", "0px 2px 10px rgba(0,0,0,0.9)") 
@@ -191,10 +228,10 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("x", GRAPH_WIDTH - MARGIN.right) 
         .attr("text-anchor", "end") 
         .attr("y", (d: any) => y(parseDate(d.date)))
-        .attr("dy", "1.3em") // Tighter spacing
+        .attr("dy", "1.3em") 
         .text((d: any) => d.label)
         .attr("fill", ACCENT_COLOR)
-        .attr("font-size", "32px") // <--- REDUCED from 48px
+        .attr("font-size", "32px") 
         .attr("font-weight", "bold")
         .style("letter-spacing", "1px")
         .style("text-shadow", "0px 2px 5px rgba(0,0,0,0.8)"); 
@@ -211,7 +248,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .call(yAxis)
         .call((g: any) => g.select(".domain").remove())
         .selectAll("text")
-        .attr("font-size", "48px") // <--- REDUCED from 64px
+        .attr("font-size", "48px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR);
 }
@@ -222,19 +259,18 @@ function drawSidebar(svg: any, fullData: any[]) {
 
     // Separator Line
     g.append("line")
-        .attr("x1", 0) .attr("y1", 0)
+        .attr("x1", 0) .attr("y1", -50) // Extend up slightly to meet the header line visually
         .attr("x2", 0) .attr("y2", HEIGHT - MARGIN.top - MARGIN.bottom)
-        .attr("stroke", "#333")
+        .attr("stroke", SEPARATOR_COLOR)
         .attr("stroke-width", 2);
 
     let currentY = 50;
-    const SECTION_GAP = 100;
-
+    
     // --- SECTION 1: KEY STATS ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("LIFETIME STATS")
-        .attr("font-size", "36px") // <--- REDUCED HEADER
+        .attr("font-size", "36px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
@@ -248,14 +284,14 @@ function drawSidebar(svg: any, fullData: any[]) {
         g.append("text")
             .attr("x", xOffset).attr("y", yOffset)
             .text(stat.value)
-            .attr("font-size", "72px") // <--- REDUCED VALUE
+            .attr("font-size", "72px") 
             .attr("font-weight", "800")
             .attr("fill", TEXT_COLOR);
         
         g.append("text")
             .attr("x", xOffset).attr("y", yOffset + 45)
             .text(stat.label.toUpperCase())
-            .attr("font-size", "24px") // <--- REDUCED LABEL
+            .attr("font-size", "24px") 
             .attr("fill", SUB_TEXT_COLOR)
             .style("letter-spacing", "1px");
     });
@@ -277,13 +313,13 @@ function drawSidebar(svg: any, fullData: any[]) {
         g.append("text")
             .attr("x", 80).attr("y", currentY + (i * 140))
             .text(item.question)
-            .attr("font-size", "28px") // <--- REDUCED QUESTION
+            .attr("font-size", "28px") 
             .attr("fill", SUB_TEXT_COLOR);
 
         g.append("text")
             .attr("x", 80).attr("y", currentY + (i * 140) + 40)
             .text(item.answer)
-            .attr("font-size", "42px") // <--- REDUCED ANSWER
+            .attr("font-size", "42px") 
             .attr("font-weight", "bold")
             .attr("fill", TEXT_COLOR);
     });
@@ -304,14 +340,14 @@ function drawSidebar(svg: any, fullData: any[]) {
     const getColor = (key: string) => REPO_COLORS[key] || "#999";
 
     FEATURED_REPOS.forEach((repoKey, i) => {
-        const plotHeight = 220; // Slightly smaller plots
+        const plotHeight = 220; 
         const plotWidth = 800;
         const yPos = currentY + (i * (plotHeight + 100));
 
         g.append("text")
             .attr("x", 80).attr("y", yPos - 20)
             .text(repoKey)
-            .attr("font-size", "36px") // <--- REDUCED TITLE
+            .attr("font-size", "36px") 
             .attr("font-weight", "bold")
             .attr("fill", getColor(repoKey));
 
