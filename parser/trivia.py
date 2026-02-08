@@ -45,7 +45,6 @@ def get_commits_from_repo(repo_path, start_date):
         os.chdir(abs_repo_path)
         
         # Git command
-        # Added %an (Author Name) and %ae (Author Email) to the format
         cmd = [
             'git', 'log',
             f'--since={start_date}',
@@ -68,14 +67,12 @@ def get_commits_from_repo(repo_path, start_date):
 
             if line.startswith('COMMIT_MARKER|'):
                 # New commit line found
-                # Split by pipe, maxsplit=5 to handle pipes in commit message safely
                 parts = line.split('|', 5)
                 if len(parts) < 6: continue
                 
                 _, h, date_str, author_name, author_email, msg = parts
                 
                 # --- AUTHOR CHECK ---
-                # If author doesn't match, set current_commit to None so we skip the numstats
                 if not (auth_pattern.search(author_name) or auth_pattern.search(author_email)):
                     current_commit = None
                     continue
@@ -96,11 +93,9 @@ def get_commits_from_repo(repo_path, start_date):
                 parsed_commits.append(current_commit)
             
             elif current_commit:
-                # If we have a valid current_commit (meaning author matched), process stats
                 parts = line.split()
                 if len(parts) >= 3:
                     add, rem = parts[0], parts[1]
-                    # Binary files return '-'
                     if add != '-': current_commit['added'] += int(add)
                     if rem != '-': current_commit['deleted'] += int(rem)
 
@@ -125,9 +120,11 @@ def analyze_data(all_commits):
     cleaned_messages = []
     for c in all_commits:
         msg = c['message']
-        # Remove Jira prefixes (PROJ-123) and Conventional Commits (feat:)
-        msg = re.sub(r'^[A-Za-z]+-\d+[:\s-]*', '', msg)
-        msg = re.sub(r'^[a-z]+(\([a-z0-9-]+\))?[:\s-]*', '', msg)
+        # Remove Jira prefixes (PROJ-123 / [PROJ-123]) and Conventional Commits (feat:)
+        msg = re.sub(r'^\[[A-Za-z]+-\d+\][:\s-]*', '', msg) # Remove [PROJ-123]
+        msg = re.sub(r'^[A-Za-z]+-\d+[:\s-]*', '', msg)     # Remove PROJ-123
+        msg = re.sub(r'^[a-z]+(\([a-z0-9-]+\))?[:\s-]*', '', msg) # Remove feat:
+        
         cleaned_msg = msg.strip().lower()
         if cleaned_msg: 
             cleaned_messages.append(cleaned_msg)
@@ -140,15 +137,22 @@ def analyze_data(all_commits):
         msg = c['message']
         prefix = "Unknown"
         
-        # Jira-style (UPPER-123)
-        jira_match = re.match(r'^([A-Z]+)-\d+', msg)
-        if jira_match:
-            prefix = jira_match.group(1)
+        # 3a. Bracketed Jira-style: "[aud-3772] msg" or "[AUD-3772]"
+        # Changed [A-Z] to [A-Za-z] to support lowercase
+        bracket_match = re.match(r'^\[([A-Za-z]+)-\d+\]', msg)
+        if bracket_match:
+            prefix = bracket_match.group(1).upper() # Normalize to AUD
         else:
-            # Simple prefix (feat:)
-            simple_match = re.match(r'^([A-Za-z]+):', msg)
-            if simple_match:
-                prefix = simple_match.group(1)
+            # 3b. Standard Jira-style: "aud-3772: msg"
+            # Changed [A-Z] to [A-Za-z]
+            jira_match = re.match(r'^([A-Za-z]+)-\d+', msg)
+            if jira_match:
+                prefix = jira_match.group(1).upper() # Normalize to AUD
+            else:
+                # 3c. Simple prefix: "feat: msg"
+                simple_match = re.match(r'^([A-Za-z]+):', msg)
+                if simple_match:
+                    prefix = simple_match.group(1).upper() # Normalize to FEAT
         
         team_counts[prefix] += 1
         
@@ -183,7 +187,7 @@ def main():
         all_commits.extend(repo_commits)
 
     if not all_commits:
-        print("\n⚠️ No commits found in any repositories. Check paths, start dates, or author regex.")
+        print("\n⚠️ No commits found. Check paths, dates, or AUTHOR_REGEX.")
         sys.exit(0)
 
     print("\n--- 📊 ANALYZING DATA ---")
@@ -210,7 +214,7 @@ const STATS = [
 const TRIVIA = [
     {{ question: "Most Productive Day", answer: "{stats['most_productive_day']}" }},
     {{ question: "Most Used Commit Msg", answer: "'{stats['most_used_message']}'" }},
-    {{ question: "Most \\"Productive\\" Year", answer: "2020" }}, // Requires yearly grouping
+    {{ question: "Most \\"Productive\\" Year", answer: "2020" }}, 
     {{ question: "Cereal Bowls Consumed", answer: "≈ 2,400" }},
     {{ question: "Mentored / Inspired", answer: "18 Devs" }},
 ];

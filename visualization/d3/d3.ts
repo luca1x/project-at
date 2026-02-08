@@ -5,11 +5,11 @@ declare const d3: any;
 
 // A1: 594 x 841 -> sqrt(2) ratio
 // CANVAS: 3000px for Graph + 1200px for Sidebar = 4200px Total Width
-const GRAPH_WIDTH = 2900;
-const SIDEBAR_WIDTH = 1300;
+const GRAPH_WIDTH = 3500;
+const SIDEBAR_WIDTH = 1500;
 const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
-const HEADER_HEIGHT = 600; 
-const HEIGHT = 5340 + HEADER_HEIGHT;
+const HEADER_HEIGHT = 900; 
+const HEIGHT = 6100 + HEADER_HEIGHT;
 
 const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 50, left: 450 };
 const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
@@ -21,23 +21,26 @@ const REPO_COLORS: { [key: string]: string } = {
     "shared": "#A8DADC",           
     "infrastructure": "#457B9D",   
     "profile-api": "#1D3557",
-    "profile-db": "#FFB703",      
+    "profile-db": "#ffdd03",      
     "python-lib": "#1c9b8c",
     "segment-api": "#B56576",
-    "advertiser-connect": "#264653"
+    "advertiser-connect": "#264653",
+    "utils" : "#ff7300",
+    "audience-export": "#B5838D",
 };
 
 const FALLBACK_COLORS = [
     "#6D597A", // Deep Purple
-    "#F4A261", // Sandy Orange
+    "#e9b74a", // Sandy Orange
     "#8AB17D", // Sage Green
     "#E76F51", // Burnt Sienna
     "#535154", // Charcoal Grey
     "#8172B3", // Soft Lavender
-    "#948B3D", // Olive Green
-    "#B5838D", // Old Rose
+    "#a49826", // Olive Green
     "#937860", // Coffee Brown
-    "#C44E52"  // Muted Red
+    "#C44E52",  // Muted Red
+    "#086b78",
+    "#25085a",
 ]
 
 
@@ -52,27 +55,28 @@ const parseDate = d3.timeParse("%Y-%m");
 
 // --- SIDEBAR DATA ---
 const STATS = [
-    { label: "Total Commits", value: "14,205" }, // TODO
-    { label: "Coffees", value: "≈ 3,500" },
-    { label: "Lines Added", value: "1.2M+", color: "#daf6e6" },  // TODO 
-    { label: "Lines Deleted", value: "850K", color: "#ffdcd8" } // TODO 
+    { label: "Commits to Production", value: "3,000+" }, // imported from trivia.py, TODO: check via github
+    { label: "Coffees", value: "≈ 3,500" }, // educated guess
+    { label: "Lines Added", value: "222k", color: "#b6efcf" },  // TODO: github
+    { label: "Lines Deleted", value: "106k", color: "#f9c7c1" } // TODO: github
 ];
 
 const TRIVIA = [
-    { question: "Most Productive Day", answer: "Tuesday" },
-    { question: "Most Used Commit Msg", answer: "'fix typo'" },
-    { question: "Most \"Productive\" Year", answer: "2020" },
-    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" },
-    { question: "Mentored / Inspired", answer: "18 Devs" },
+    { question: "Most Productive Day", answer: "Monday" }, // imported from trivia.py
+    { question: "Most Productive Year", answer: "2020" }, // imported from trivia.py
+    { question: "Number of Offices", answer: "3" }, // imported from trivia.py
+    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" }, // educated guess
+    { question: "Mentored & Inspired", answer: "20+ Devs" }, // check with fabian
 ];
 
 const TEAM_DATA = [
-    { id: "AIS Team", value: 3500, color: "#00f2c3" },       
-    { id: "AC (Ads)", value: 2800, color: "#00d2ff" },       
-    { id: "Maintenance", value: 1500, color: "#bdc3c7" },    
-    { id: "Unknown", value: 800, color: "#8e44ad" },         
-    { id: "Refactor", value: 1200, color: "#ff4757" },       
-    { id: "Experiments", value: 400, color: "#ffa502" },     
+    { id: "AIS Team", value: 350, color: "#00f2c3" },       
+    { id: "Maintenance", value: 400, color: "#bdc3c7" },    
+    { id: "AUD", value: 800, color: "#8e44ad" },         
+    { id: "Hotfix", value: 45, color: "#ff4757" },       
+    { id: "Experiments", value: 38, color: "#ffa502" },     
+    { id: "Unknown", value: 600, color: "#00d2ff" },       
+
 ];
 
 
@@ -100,8 +104,11 @@ const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
 }));
 
 const EVENTS = [
-    { date: "2017-01", label: "Axel Springer", color: "#fff" },
+    { date: "2016-01", label: "Seed Round", color: "#fff" },
+    { date: "2017-01", label: "Ringier Axel Springer", color: "#fff" },
+    { date: "2017-05", label: "Audience Team", color: "#fff" },
     { date: "2020-06", label: "Realtime System", color: "#fff" },
+    { date: "2021-02", label: "Series B", color: "#fff" },
     { date: "2022-03", label: "Triplelift Acquisition", color: "#fff" },
     { date: "2022-09", label: "US Datacenter Launch", color: "#fff" },
     { date: "2025-01", label: "AIS Team", color: "#fff" }
@@ -138,10 +145,10 @@ function drawHeader(svg: any, qrXml: any) {
     // Title
     g.append("text")
         .attr("x", MARGIN.left) 
-        .attr("y", 350)
+        .attr("y", 500)
         .text("A Decade of Impact") 
         .style("font-family", "'Futura', sans-serif") 
-        .attr("font-size", "225px") 
+        .attr("font-size", "280px") 
         .attr("font-weight", "700") 
         .attr("fill", TEXT_COLOR)
         .style("font-variant", "small-caps") 
@@ -150,19 +157,19 @@ function drawHeader(svg: any, qrXml: any) {
     // Subtitle
     g.append("text")
         .attr("x", MARGIN.left)
-        .attr("y", 450)
+        .attr("y", 630)
         .text("ANDREAS TSCHOFEN • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
         .style("font-family", "'Futura', sans-serif") 
-        .attr("font-size", "50px")
+        .attr("font-size", "70px")
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
         .style("letter-spacing", "6px");
 
     // --- QR CODE EMBEDDING ---
     if (qrXml) {
-        const qrSize = 300;
-        const qrX = WIDTH - MARGIN.right - qrSize - 80;
-        const qrY = 160;
+        const qrSize = 350;
+        const qrX = WIDTH - MARGIN.right - qrSize - 175;
+        const qrY = 250;
         
         const qrGroup = g.append("g")
             .attr("transform", `translate(${qrX}, ${qrY})`);
@@ -191,9 +198,9 @@ function drawHeader(svg: any, qrXml: any) {
     // Separator Line
     g.append("line")
         .attr("x1", MARGIN.left)
-        .attr("y1", 550)
-        .attr("x2", WIDTH - 150) 
-        .attr("y2", 550)
+        .attr("y1", 750)
+        .attr("x2", WIDTH - 200) 
+        .attr("y2", 750)
         .attr("stroke", SEPARATOR_COLOR)
         .attr("stroke-width", 8);
 }
@@ -207,7 +214,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
     const y = d3.scaleTime()
         .domain(d3.extent(data, (d: any) => d.dateObj))
         // Reduced bottom range slightly to keep graph tight
-        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 250]); 
+        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 350]); 
 
     const maxStack = d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]));
     const minStack = d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0]));
@@ -233,7 +240,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
     linesLayer.selectAll(".event-line")
         .data(EVENTS)
         .join("line")
-        .attr("x1", MARGIN.left)
+        .attr("x1", MARGIN.left+150)
         .attr("x2", GRAPH_WIDTH - MARGIN.right + 100)
         .attr("y1", (d: any) => y(parseDate(d.date)))
         .attr("y2", (d: any) => y(parseDate(d.date)))
@@ -284,7 +291,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("class", "repo-label")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .style("font-size", "48px") 
+        .style("font-size", "60px") 
         .style("font-weight", "bold") 
         .style("fill", "white")
         .style("pointer-events", "none")
@@ -303,7 +310,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("dy", "1.3em") 
         .text((d: any) => d.label)
         .attr("fill", ACCENT_COLOR)
-        .attr("font-size", "50px") 
+        .attr("font-size", "60px") 
         .attr("font-weight", "bold")
         .style("letter-spacing", "1px")
         .style("text-shadow", "0px 2px 5px rgba(0,0,0,0.8)"); 
@@ -316,11 +323,11 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .tickPadding(30);
 
     svg.append("g")
-        .attr("transform", `translate(${MARGIN.left - 20}, 0)`)
+        .attr("transform", `translate(${MARGIN.left + 75}, 0)`)
         .call(yAxis)
         .call((g: any) => g.select(".domain").remove())
         .selectAll("text")
-        .attr("font-size", "56px") 
+        .attr("font-size", "60px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR);
 }
@@ -342,77 +349,77 @@ function drawSidebar(svg: any, fullData: any[]) {
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("LIFETIME STATS")
-        .attr("font-size", "54px") 
+        .attr("font-size", "70px") 
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
 
-    currentY += 100;
+    currentY += 200;
 
     STATS.forEach((stat: any, i) => {
-        const xOffset = 80 + (i % 2) * 450; 
+        const xOffset = 80 + (i % 2) * 600; 
         const yOffset = currentY + Math.floor(i / 2) * 180;
         const valColor = stat.color ? stat.color : TEXT_COLOR;
 
         g.append("text")
             .attr("x", xOffset).attr("y", yOffset)
             .text(stat.value)
-            .attr("font-size", "72px") 
+            .attr("font-size", "90px") 
             .attr("font-weight", "800")
             .attr("fill", valColor);
         
         g.append("text")
-            .attr("x", xOffset).attr("y", yOffset + 55)
+            .attr("x", xOffset).attr("y", yOffset + 70)
             .text(stat.label.toUpperCase())
-            .attr("font-size", "30px") 
+            .attr("font-size", "40px") 
             .attr("fill", SUB_TEXT_COLOR)
             .style("letter-spacing", "1px");
     });
 
     // Reduced gap to fit more sections
-    currentY += 450; 
+    currentY += 500; 
 
     // --- SECTION 2: TRIVIA ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("TRIVIA")
-        .attr("font-size", "54px")
+        .attr("font-size", "70px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
     
-    currentY += 100;
+    currentY += 140;
 
     TRIVIA.forEach((item, i) => {
         g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 140))
+            .attr("x", 80).attr("y", currentY + (i * 200))
             .text(item.question)
-            .attr("font-size", "40px") 
+            .attr("font-size", "60px") 
             .attr("fill", SUB_TEXT_COLOR);
 
         g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 140) + 60)
+            .attr("x", 80).attr("y", currentY + (i * 200) + 75)
             .text(item.answer)
-            .attr("font-size", "48px") 
+            .attr("font-size", "70px") 
             .attr("font-weight", "bold")
             .attr("fill", TEXT_COLOR);
     });
 
     // Reduced gap
-    currentY += (TRIVIA.length * 140) + 130;
+    currentY += (TRIVIA.length * 200) + 150;
 
     // --- SECTION 3: TEAM BUBBLES ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("COMMIT TYPES & TEAMS")
-        .attr("font-size", "54px")
+        .attr("font-size", "70px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
     
     currentY += 80;
 
-    const bubbleSize = 900; 
+    const bubbleSize = 1000; 
     const root = d3.hierarchy({ children: TEAM_DATA }).sum((d: any) => d.value);
     const pack = d3.pack().size([bubbleSize, bubbleSize]).padding(20);
     const rootNode = pack(root);
@@ -433,7 +440,6 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("stroke-width", 4); 
 
     nodes.append("text")
-        .attr("dy", "-0.2em")
         .style("text-anchor", "middle")
         .text((d: any) => d.data.id)
         .attr("font-size", (d: any) => Math.min(2 * d.r / d.data.id.length * 1.5, 48) + "px")
@@ -442,29 +448,29 @@ function drawSidebar(svg: any, fullData: any[]) {
         .style("pointer-events", "none")
         .style("text-shadow", "0px 2px 8px rgba(0,0,0,0.8)"); 
 
-    nodes.append("text")
-        .attr("dy", "1.2em")
-        .style("text-anchor", "middle")
-        .text((d: any) => d3.format(",")(d.data.value))
-        .attr("font-size", (d: any) => Math.min(d.r / 3, 32) + "px")
-        .attr("fill", "rgba(255,255,255,0.9)")
-        .style("pointer-events", "none");
+    // nodes.append("text")
+    //     .attr("dy", "1.2em")
+    //     .style("text-anchor", "middle")
+    //     .text((d: any) => d3.format(",")(d.data.value))
+    //     .attr("font-size", (d: any) => Math.min(d.r / 3, 32) + "px")
+    //     .attr("fill", "rgba(255,255,255,0.9)")
+    //     .style("pointer-events", "none");
 
-    currentY += bubbleSize + 200; // Move down
+    currentY += bubbleSize + 210; // Move down
 
     // --- SECTION 4: MEETINGS GRAPH ---
     g.append("text")
         .attr("x", 80).attr("y", currentY)
         .text("MEETINGS ATTENDED")
-        .attr("font-size", "54px")
+        .attr("font-size", "70px")
         .attr("font-weight", "bold")
         .attr("fill", ACCENT_COLOR)
         .style("letter-spacing", "3px");
     
-    currentY += 60;
+    currentY += 100;
 
     const graphHeight = 350;
-    const graphWidth = 900;
+    const graphWidth = 1000;
     const graphG = g.append("g").attr("transform", `translate(80, ${currentY})`);
 
     const mX = d3.scaleTime()
@@ -518,7 +524,7 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("y", currentY)
         .attr("text-anchor", "middle")
         .text("Thank you for everything!")
-        .attr("font-size", "55")
+        .attr("font-size", "75")
         .attr("font-weight", "900")
         .attr("fill", TEXT_COLOR)
         .style("letter-spacing", "6px");
