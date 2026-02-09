@@ -55,16 +55,16 @@ const parseDate = d3.timeParse("%Y-%m");
 
 // --- SIDEBAR DATA ---
 const STATS = [
-    { label: "Commits to Production", value: "3,000+" }, // imported from trivia.py, TODO: check via github
+    { label: "Commits to Production", value: "2,713" }, // imported from trivia.py, TODO: check via github
     { label: "Coffees", value: "≈ 3,500" }, // educated guess
-    { label: "Lines Added", value: "222k", color: "#b6efcf" },  // TODO: github
-    { label: "Lines Deleted", value: "106k", color: "#f9c7c1" } // TODO: github
+    { label: "Lines Added", value: "223k", color: "#b6efcf" },  // TODO: github
+    { label: "Lines Deleted", value: "107k", color: "#f9c7c1" } // TODO: github
 ];
 
 const TRIVIA = [
     { question: "Most Productive Day", answer: "Monday" }, // imported from trivia.py
     { question: "Most Productive Year", answer: "2020" }, // imported from trivia.py
-    { question: "Number of Offices", answer: "3" }, // imported from trivia.py
+    { question: "Number of Offices", answer: "4" }, // imported from trivia.py
     { question: "Cereal Bowls Consumed", answer: "≈ 2,400" }, // educated guess
     { question: "Mentored & Inspired", answer: "20+ Devs" }, // check with fabian
 ];
@@ -145,7 +145,7 @@ function drawHeader(svg: any, qrXml: any) {
     // Title
     g.append("text")
         .attr("x", MARGIN.left) 
-        .attr("y", 500)
+        .attr("y", 580)
         .text("A Decade of Impact") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "280px") 
@@ -157,7 +157,7 @@ function drawHeader(svg: any, qrXml: any) {
     // Subtitle
     g.append("text")
         .attr("x", MARGIN.left)
-        .attr("y", 630)
+        .attr("y", 700)
         .text("ANDREAS TSCHOFEN • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "70px")
@@ -169,7 +169,7 @@ function drawHeader(svg: any, qrXml: any) {
     if (qrXml) {
         const qrSize = 350;
         const qrX = WIDTH - MARGIN.right - qrSize - 175;
-        const qrY = 250;
+        const qrY = 330;
         
         const qrGroup = g.append("g")
             .attr("transform", `translate(${qrX}, ${qrY})`);
@@ -198,9 +198,9 @@ function drawHeader(svg: any, qrXml: any) {
     // Separator Line
     g.append("line")
         .attr("x1", MARGIN.left)
-        .attr("y1", 750)
+        .attr("y1", 830)
         .attr("x2", WIDTH - 200) 
-        .attr("y2", 750)
+        .attr("y2", 830)
         .attr("stroke", SEPARATOR_COLOR)
         .attr("stroke-width", 8);
 }
