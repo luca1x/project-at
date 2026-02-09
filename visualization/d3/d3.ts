@@ -55,18 +55,18 @@ const parseDate = d3.timeParse("%Y-%m");
 
 // --- SIDEBAR DATA ---
 const STATS = [
-    { label: "Commits to Production", value: "2,713" }, // imported from trivia.py, TODO: check via github
+    { label: "Commits to Production", value: "2,713" }, // imported from trivia.py
     { label: "Coffees", value: "≈ 3,500" }, // educated guess
-    { label: "Lines Added", value: "223k", color: "#b6efcf" },  // TODO: github
-    { label: "Lines Deleted", value: "107k", color: "#f9c7c1" } // TODO: github
+    { label: "Lines Added", value: "223k", color: "#b6efcf" },  
+    { label: "Lines Deleted", value: "107k", color: "#f9c7c1" } 
 ];
 
 const TRIVIA = [
-    { question: "Most Productive Day", answer: "Monday" }, // imported from trivia.py
-    { question: "Most Productive Year", answer: "2020" }, // imported from trivia.py
-    { question: "Number of Offices", answer: "4" }, // imported from trivia.py
-    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" }, // educated guess
-    { question: "Mentored & Inspired", answer: "20+ Devs" }, // check with fabian
+    { question: "Most Productive Day", answer: "Monday" }, 
+    { question: "Most Productive Year", answer: "2020" }, 
+    { question: "Number of Offices", answer: "4" }, 
+    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" }, 
+    { question: "Mentored & Inspired", answer: "20+ Devs" }, 
 ];
 
 const TEAM_DATA = [
@@ -76,13 +76,10 @@ const TEAM_DATA = [
     { id: "Hotfix", value: 45, color: "#ff4757" },       
     { id: "Experiments", value: 38, color: "#ffa502" },     
     { id: "Unknown", value: 600, color: "#00d2ff" },       
-
 ];
 
 
 // --- MEETING DATA ---
-// --- MANUAL MEETING DATA ---
-// TODO: EDIT THESE NUMBERS
 const RAW_MEETINGS_DATA = [
     { year: 2016, value: 500 },
     { year: 2017, value: 550 },
@@ -121,14 +118,20 @@ async function drawPoster() {
         .append("svg")
         .attr("viewBox", [0, 0, WIDTH, HEIGHT])
         .attr("xmlns", "http://www.w3.org/2000/svg")
-        .style("background", BG_COLOR)
+        .style("background", BG_COLOR) // Keep for web preview
         .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
 
+    // --- FIX: EXPLICIT BACKGROUND RECTANGLE ---
+    // This ensures the background color is preserved in Illustrator/Exports
+    svg.append("rect")
+        .attr("width", WIDTH)
+        .attr("height", HEIGHT)
+        .attr("fill", BG_COLOR);
+
     // Load Data AND QR Code SVG concurrently
-    // We assume resources/qr.svg is relative to the build root, similar to ../../data
     const [rawData, qrXml] = await Promise.all([
         d3.json("../../data/streamgraph_data.json"),
-        d3.xml("../../resources/qr.svg").catch(() => null) // Handle error if file missing
+        d3.xml("../../resources/qr.svg").catch(() => null) 
     ]);
 
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
@@ -184,7 +187,6 @@ function drawHeader(svg: any, qrXml: any) {
         const importedNode = document.importNode(qrXml.documentElement, true);
         
         // 3. Scale & Pad the SVG to fit inside the box
-        // We add 20px padding (10px on each side) so the QR code doesn't touch the white edge
         d3.select(importedNode)
             .attr("width", qrSize - 20)
             .attr("height", qrSize - 20)
@@ -447,14 +449,6 @@ function drawSidebar(svg: any, fullData: any[]) {
         .attr("fill", "white")
         .style("pointer-events", "none")
         .style("text-shadow", "0px 2px 8px rgba(0,0,0,0.8)"); 
-
-    // nodes.append("text")
-    //     .attr("dy", "1.2em")
-    //     .style("text-anchor", "middle")
-    //     .text((d: any) => d3.format(",")(d.data.value))
-    //     .attr("font-size", (d: any) => Math.min(d.r / 3, 32) + "px")
-    //     .attr("fill", "rgba(255,255,255,0.9)")
-    //     .style("pointer-events", "none");
 
     currentY += bubbleSize + 210; // Move down
 
