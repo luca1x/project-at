@@ -21,7 +21,7 @@ const REPO_COLORS: { [key: string]: string } = {
     "shared": "#A8DADC",           
     "infrastructure": "#457B9D",   
     "profile-api": "#1D3557",
-    "profile-db": "#ffdd03",      
+    "profile-db": "#eece00",      
     "python-lib": "#1c9b8c",
     "segment-api": "#B56576",
     "advertiser-connect": "#264653",
@@ -55,7 +55,7 @@ const parseDate = d3.timeParse("%Y-%m");
 
 // --- SIDEBAR DATA ---
 const STATS = [
-    { label: "Commits to Production", value: "2,713" }, // imported from trivia.py
+    { label: "Commits to Prod", value: "2,713" }, // imported from trivia.py
     { label: "Coffees", value: "≈ 3,500" }, // educated guess
     { label: "Lines Added", value: "223k", color: "#b6efcf" },  
     { label: "Lines Deleted", value: "107k", color: "#f9c7c1" } 
@@ -120,6 +120,7 @@ async function drawPoster() {
         .attr("xmlns", "http://www.w3.org/2000/svg")
         .style("background", BG_COLOR) // Keep for web preview
         .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
+
 
     // --- FIX: EXPLICIT BACKGROUND RECTANGLE ---
     // This ensures the background color is preserved in Illustrator/Exports
@@ -297,7 +298,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .style("font-weight", "bold") 
         .style("fill", "white")
         .style("pointer-events", "none")
-        .style("text-shadow", "0px 2px 10px rgba(0,0,0,0.9)") 
+        .style("text-shadow", "0px 5px 15px rgba(0,0,0,0.9)") 
         .text((d: any) => d.key)
         .attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
 
