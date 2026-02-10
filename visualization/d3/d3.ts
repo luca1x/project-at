@@ -44,7 +44,7 @@ const FALLBACK_COLORS = [
 ]
 
 
-const BG_COLOR = "#303030";
+const BG_COLOR = "#1a1a1a";
 const TEXT_COLOR = "#ffffff";
 const SUB_TEXT_COLOR = "#aaaaaa";
 const ACCENT_COLOR = "#cccccc";
@@ -288,26 +288,6 @@ async function drawStreamgraph(svg: any, data: any[]) {
         return true;
     });
 
-
-    labelsLayer.selectAll("text.halo-label")
-        .data(visibleLabels)
-        .join("text")
-        .attr("class", "halo-label")
-        .attr("text-anchor", "middle")
-        .attr("dominant-baseline", "middle")
-        .style("font-family", "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif") 
-        .style("font-size", "60px") 
-        .style("font-weight", "bold") 
-        .style("stroke", "#000000") // Black Halo
-        .style("stroke-width", "12px") // Thick Outline
-        .style("stroke-linejoin", "round") // Smooth corners
-        .style("stroke-opacity", "0.3") // Slightly softer look, but still vector
-        .style("fill", "none") // No fill, just outline
-        .style("pointer-events", "none")
-        .text((d: any) => d.key)
-        .attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
-
-
     labelsLayer.selectAll("text.repo-label")
         .data(visibleLabels)
         .join("text")
@@ -318,6 +298,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .style("font-weight", "bold") 
         .style("fill", "white")
         .style("pointer-events", "none")
+        .style("text-shadow", "0px 5px 15px rgba(0,0,0,0.9)") 
         .text((d: any) => d.key)
         .attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
 
@@ -380,7 +361,7 @@ function drawSidebar(svg: any, fullData: any[]) {
 
     STATS.forEach((stat: any, i) => {
         const xOffset = 80 + (i % 2) * 600; 
-        const yOffset = currentY + Math.floor(i / 2) * 200;
+        const yOffset = currentY + Math.floor(i / 2) * 180;
         const valColor = stat.color ? stat.color : TEXT_COLOR;
 
         g.append("text")
@@ -391,9 +372,9 @@ function drawSidebar(svg: any, fullData: any[]) {
             .attr("fill", valColor);
         
         g.append("text")
-            .attr("x", xOffset).attr("y", yOffset + 65)
+            .attr("x", xOffset).attr("y", yOffset + 70)
             .text(stat.label.toUpperCase())
-            .attr("font-size", "45px") 
+            .attr("font-size", "40px") 
             .attr("fill", SUB_TEXT_COLOR)
             .style("letter-spacing", "1px");
     });
@@ -416,13 +397,13 @@ function drawSidebar(svg: any, fullData: any[]) {
         g.append("text")
             .attr("x", 80).attr("y", currentY + (i * 200))
             .text(item.question)
-            .attr("font-size", "65px") 
+            .attr("font-size", "60px") 
             .attr("fill", SUB_TEXT_COLOR);
 
         g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 200) + 80)
+            .attr("x", 80).attr("y", currentY + (i * 200) + 75)
             .text(item.answer)
-            .attr("font-size", "75px") 
+            .attr("font-size", "70px") 
             .attr("font-weight", "bold")
             .attr("fill", TEXT_COLOR);
     });
@@ -534,14 +515,14 @@ function drawSidebar(svg: any, fullData: any[]) {
 
     // --- FINAL FOOTER ---
     g.append("text")
-        .attr("x", SIDEBAR_WIDTH / 2 - 75) 
+        .attr("x", SIDEBAR_WIDTH / 2 - 50) 
         .attr("y", currentY)
         .attr("text-anchor", "middle")
         .text("Thank you for everything!")
         .attr("font-size", "75")
         .attr("font-weight", "900")
         .attr("fill", TEXT_COLOR)
-        .style("letter-spacing", "3px");
+        .style("letter-spacing", "6px");
 }
 
 // --- BUTTON HELPER ---
