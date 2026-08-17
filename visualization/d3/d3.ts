@@ -44,7 +44,7 @@ const FALLBACK_COLORS = [
 ]
 
 
-const BG_COLOR = "#303030";
+const BG_COLOR = "#1a1a1a";
 const TEXT_COLOR = "#ffffff";
 const SUB_TEXT_COLOR = "#aaaaaa";
 const ACCENT_COLOR = "#cccccc";
