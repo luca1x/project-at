@@ -4,123 +4,162 @@ declare const d3: any;
 // --- CONFIGURATION ---
 
 // A1: 594 x 841 -> sqrt(2) ratio
-// CANVAS: 3000px for Graph + 1200px for Sidebar = 4200px Total Width
-const GRAPH_WIDTH = 3500;
-const SIDEBAR_WIDTH = 1500;
-const WIDTH = GRAPH_WIDTH + SIDEBAR_WIDTH;
-const HEADER_HEIGHT = 900; 
-const HEIGHT = 6100 + HEADER_HEIGHT;
+// CANVAS: 5000 x 7000 keeps the sqrt(2) poster ratio
+const WIDTH = 5000;
+const HEIGHT = 7000;
+const HEADER_HEIGHT = 900;
 
-const MARGIN = { top: HEADER_HEIGHT + 150, right: 100, bottom: 50, left: 450 };
-const SIDEBAR_X_START = GRAPH_WIDTH + 150; 
+const EDGE = 100; // outer poster margin
 
-// --- COLORS ---
-const REPO_COLORS: { [key: string]: string } = {
-    "production": "#E63946",       
-    "production-front-end": "#e87233", 
-    "shared": "#A8DADC",           
-    "infrastructure": "#457B9D",   
-    "profile-api": "#1D3557",
-    "canonicalization": "#eece00",      
-    "id-matcher": "#1c9b8c",
-    "production-tagger": "#B56576",
-    "advertiser-connect": "#264653",
-    "utils" : "#ff7300",
-    "audience-export": "#B5838D",
+// The right-hand column belongs entirely to the timeline now. The milestone
+// type hangs in it, so the streams and the labels never share space.
+const TIMELINE_WIDTH = 1200;
+
+// Extra top margin leaves room for the beam + prism between header and graph;
+// the bottom leaves room for the sign-off under the streams.
+const MARGIN = { top: HEADER_HEIGHT + 700, right: TIMELINE_WIDTH, bottom: 650, left: 450 };
+
+// Where the streams stop and the timeline gutter begins
+const GRAPH_RIGHT = WIDTH - MARGIN.right;
+
+// Milestone type is right-aligned into the gutter, with its band of the
+// spectrum as a dot beyond it
+const TIMELINE_LABEL_RIGHT = WIDTH - EDGE - 80;
+const TIMELINE_DOT_X = WIDTH - EDGE - 20;
+
+// The type hangs just under its own dashed line. Baseline and dot both come off
+// the same gap, so the line, the label and the dot read as one row - and the
+// label stays closer to its own milestone than to the one below it.
+const TIMELINE_FONT_SIZE = 60;
+const TIMELINE_CAP_HEIGHT = 0.70;  // Josefin Sans cap height, as a fraction of em
+const TIMELINE_LABEL_GAP = 20;     // from the dashed line down to the cap tops
+const TIMELINE_LABEL_DY = TIMELINE_LABEL_GAP + TIMELINE_FONT_SIZE * TIMELINE_CAP_HEIGHT;
+// The dot sits on the optical centre of the caps, not on their baseline
+const TIMELINE_DOT_DY = TIMELINE_LABEL_DY - (TIMELINE_FONT_SIZE * TIMELINE_CAP_HEIGHT) / 2;
+
+const HEADER_RULE_Y = 750;
+
+// The prism sits above the head of the streamgraph and disperses into it
+const PRISM = {
+    apexY: HEADER_HEIGHT + 90,
+    height: 300,
+    halfWidth: 175,
+    beamOriginY: HEADER_HEIGHT + 40
 };
 
-const FALLBACK_COLORS = [
-    "#6D597A", // Deep Purple
-    "#e9b74a", // Sandy Orange
-    "#8AB17D", // Sage Green
-    "#E76F51", // Burnt Sienna
-    "#535154", // Charcoal Grey
-    "#8172B3", // Soft Lavender
-    "#a49826", // Olive Green
-    "#937860", // Coffee Brown
-    "#C44E52",  // Muted Red
-    "#086b78",
-    "#1ac8c3",
-]
+// --- PALETTE: THE DARK SIDE OF THE CODEBASE ---
+// The six bands of the Dark Side of the Moon prism (no indigo, as on the sleeve)
+const SPECTRUM = [
+    "#ee2b2b", // Red
+    "#f58220", // Orange
+    "#f7e425", // Yellow
+    "#3cb44b", // Green
+    "#1e6fd9", // Blue
+    "#8b3fa8"  // Violet
+];
 
+// prism(t) samples the spectrum continuously, t in [0, 1]
+const prism = d3.scaleLinear()
+    .domain(SPECTRUM.map((_, i) => i / (SPECTRUM.length - 1)))
+    .range(SPECTRUM)
+    .interpolate(d3.interpolateHsl)
+    .clamp(true);
 
-const BG_COLOR = "#303030";
+const BG_COLOR = "#000000";
 const TEXT_COLOR = "#ffffff";
-const SUB_TEXT_COLOR = "#aaaaaa";
-const ACCENT_COLOR = "#cccccc";
-const SEPARATOR_COLOR = "#333333";
+const SUB_TEXT_COLOR = "#8c8c8c";
+const ACCENT_COLOR = "#d8d8d8";
+const SEPARATOR_COLOR = "#1e1e1e";
+
+// --- TYPE: 1970s RECORD SLEEVE ---
+// Monoton       the title only. Concentric inline strokes, pure 70s poster.
+// Josefin Sans  deco geometric, stands in for the Futura of the sleeve but
+//               with a smaller x-height, so it reads as display type.
+// Space Grotesk the small stuff. Keeps the data legible next to two loud faces.
+const TITLE_FONT = "'Monoton', 'Futura', 'Century Gothic', sans-serif";
+const DISPLAY_FONT = "'Josefin Sans', 'Futura', 'Century Gothic', sans-serif";
+const BODY_FONT = "'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
 // --- GLOBAL HELPERS ---
 const parseDate = d3.timeParse("%Y-%m");
 
-// --- SIDEBAR DATA ---
-const STATS = [
-    { label: "Commits to Prod", value: "2,713" }, // imported from trivia.py
-    { label: "Coffees", value: "≈ 3,500" }, // educated guess
-    { label: "Lines Added", value: "223k", color: "#b6efcf" },  
-    { label: "Lines Deleted", value: "107k", color: "#f9c7c1" } 
+function getDefs(svg: any) {
+    let defs = svg.select("defs");
+    if (defs.empty()) defs = svg.append("defs");
+    return defs;
+}
+
+// Horizontal or vertical rainbow gradient, returns a paint reference
+function spectrumGradient(svg: any, id: string, vertical = false, opacity = 1) {
+    const grad = getDefs(svg).append("linearGradient")
+        .attr("id", id)
+        .attr("x1", "0%").attr("y1", "0%")
+        .attr("x2", vertical ? "0%" : "100%")
+        .attr("y2", vertical ? "100%" : "0%");
+
+    SPECTRUM.forEach((c, i) => {
+        grad.append("stop")
+            .attr("offset", `${(i / (SPECTRUM.length - 1)) * 100}%`)
+            .attr("stop-color", c)
+            .attr("stop-opacity", opacity);
+    });
+    return `url(#${id})`;
+}
+
+// Chromatic split: a warm and a cool ghost sitting either side of the white
+// type, the way light comes apart on the way through the glass. Three real text
+// nodes rather than an SVG filter, so the export stays vector.
+function chromaticText(g: any, text: string, x: number, y: number,
+                       style: (sel: any) => void, spread = 14) {
+    const ghosts = [
+        { dx: -spread, dy: -spread * 0.6, color: SPECTRUM[0] },
+        { dx: spread, dy: spread * 0.6, color: SPECTRUM[4] }
+    ];
+
+    ghosts.forEach(gh => {
+        const ghost = g.append("text")
+            .attr("x", x + gh.dx).attr("y", y + gh.dy)
+            .text(text)
+            .attr("fill", gh.color)
+            .attr("opacity", 0.55);
+        style(ghost);
+    });
+
+    const main = g.append("text")
+        .attr("x", x).attr("y", y)
+        .text(text)
+        .attr("fill", TEXT_COLOR);
+    style(main);
+    return main;
+}
+
+// --- TIMELINE DATA ---
+const RAW_EVENTS = [
+    { date: "2017-01", label: "Ringier Axel Springer" },
+    { date: "2017-05", label: "Audience Team" },
+    { date: "2020-06", label: "Promotion! Data Consolidation Team Lead" },
+    { date: "2021-02", label: "Series B - 10M raised" },
+    { date: "2022-03", label: "Triplelift Acquisition" },
+    { date: "2022-06", label: "Introduction to S. Kumar" },
+    { date: "2022-09", label: "US Datacenter Launch" },
+    { date: "2025-01", label: "Back to being a code monkey in the AIS Team" }
 ];
 
-const TRIVIA = [
-    { question: "Most Productive Day", answer: "Monday" }, 
-    { question: "Most Productive Year", answer: "2020" }, 
-    { question: "Number of Offices", answer: "4" }, 
-    { question: "Cereal Bowls Consumed", answer: "≈ 2,400" }, 
-    { question: "Mentored & Inspired", answer: "20+ Devs" }, 
-];
-
-const TEAM_DATA = [
-    { id: "AIS Team", value: 350, color: "#00f2c3" },       
-    { id: "Maintenance", value: 400, color: "#bdc3c7" },    
-    { id: "AUD", value: 800, color: "#8e44ad" },         
-    { id: "Hotfix", value: 45, color: "#ff4757" },       
-    { id: "Experiments", value: 38, color: "#ffa502" },     
-    { id: "Unknown", value: 600, color: "#00d2ff" },       
-];
-
-
-// --- MEETING DATA ---
-const RAW_MEETINGS_DATA = [
-    { year: 2016, value: 500 },
-    { year: 2017, value: 550 },
-    { year: 2018, value: 690 },
-    { year: 2019, value: 890 },
-    { year: 2020, value: 1285 },
-    { year: 2021, value: 1590 },
-    { year: 2022, value: 1355 },
-    { year: 2023, value: 1576 },
-    { year: 2024, value: 1782 },
-    { year: 2025, value: 1567 },
-    { year: 2026, value: 96 }
-];
-
-// Convert plain numbers to Date objects for D3
-const MEETINGS_DATA = RAW_MEETINGS_DATA.map(d => ({
-    year: new Date(d.year, 0, 1),
-    value: d.value
+// Each milestone gets its own band of the spectrum, top to bottom
+const EVENTS = RAW_EVENTS.map((d, i) => ({
+    ...d,
+    color: prism(i / (RAW_EVENTS.length - 1))
 }));
-
-const EVENTS = [
-    { date: "2016-01", label: "Seed Round", color: "#fff" },
-    { date: "2017-01", label: "Ringier Axel Springer", color: "#fff" },
-    { date: "2017-05", label: "Audience Team", color: "#fff" },
-    { date: "2020-06", label: "DC Team Lead", color: "#fff" },
-    { date: "2021-02", label: "Series B", color: "#fff" },
-    { date: "2022-03", label: "Acquisition", color: "#fff" },
-    { date: "2022-06", label: "Introduction to S. Kumar", color: "#fff" },
-    { date: "2022-09", label: "US Datacenter Launch", color: "#fff" },
-    { date: "2025-01", label: "AIS Team IC", color: "#fff" }
-];
 
 // --- MAIN RENDER FUNCTION ---
 async function drawPoster() {
-    d3.select("#chart").html(""); 
+    d3.select("#chart").html("");
     const svg = d3.select("#chart")
         .append("svg")
         .attr("viewBox", [0, 0, WIDTH, HEIGHT])
         .attr("xmlns", "http://www.w3.org/2000/svg")
         .style("background", BG_COLOR) // Keep for web preview
-        .style("font-family", "'Helvetica Neue', Helvetica, sans-serif");
+        .style("font-family", BODY_FONT);
 
 
     // --- FIX: EXPLICIT BACKGROUND RECTANGLE ---
@@ -133,38 +172,35 @@ async function drawPoster() {
     // Load Data AND QR Code SVG concurrently
     const [rawData, qrXml] = await Promise.all([
         d3.json("../../data/streamgraph_data.json"),
-        d3.xml("../../resources/qr.svg").catch(() => null) 
+        d3.xml("../../resources/qr_silvano.svg").catch(() => null)
     ]);
 
     const data = rawData.map((d: any) => ({ ...d, dateObj: parseDate(d.date) }));
 
     drawHeader(svg, qrXml);
     await drawStreamgraph(svg, data);
-    drawSidebar(svg, data);
+    drawFooter(svg);
 }
 
 // --- COMPONENT: HEADER ---
 function drawHeader(svg: any, qrXml: any) {
     const g = svg.append("g").attr("class", "header");
-    
-    // Title
-    g.append("text")
-        .attr("x", MARGIN.left) 
-        .attr("y", 580)
-        .text("Almost A Decade of Impact") 
-        .style("font-family", "'Futura', sans-serif") 
-        .attr("font-size", "280px") 
-        .attr("font-weight", "700") 
-        .attr("fill", TEXT_COLOR)
-        .style("font-variant", "small-caps") 
-        .style("letter-spacing", "8px");
-    
+
+    // Title. Monoton runs much wider than Futura, so the point size comes down
+    // and the inline strokes carry the weight instead.
+    chromaticText(g, "Shine On You Crazy Diamond", MARGIN.left, 520, (t: any) => {
+        t.style("font-family", TITLE_FONT)
+            .attr("font-size", "190px")
+            .attr("font-weight", "400")
+            .style("letter-spacing", "6px");
+    }, 16);
+
     // Subtitle
     g.append("text")
         .attr("x", MARGIN.left)
-        .attr("y", 700)
-        .text("SILVANO BRUGNONI • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
-        .style("font-family", "'Futura', sans-serif") 
+        .attr("y", 640)
+        .text("SILVANO BRUGNONI • GITHUB COMMIT HISTORY FROM 2016 TO 2026")
+        .style("font-family", DISPLAY_FONT)
         .attr("font-size", "70px")
         .attr("font-weight", "bold")
         .attr("fill", SUB_TEXT_COLOR)
@@ -173,9 +209,9 @@ function drawHeader(svg: any, qrXml: any) {
     // --- QR CODE EMBEDDING ---
     if (qrXml) {
         const qrSize = 350;
-        const qrX = WIDTH - MARGIN.right - qrSize - 175;
-        const qrY = 330;
-        
+        const qrX = WIDTH - EDGE - qrSize - 175;
+        const qrY = 290;
+
         const qrGroup = g.append("g")
             .attr("transform", `translate(${qrX}, ${qrY})`);
 
@@ -187,26 +223,166 @@ function drawHeader(svg: any, qrXml: any) {
 
         // 2. Import External SVG Node
         const importedNode = document.importNode(qrXml.documentElement, true);
-        
+
         // 3. Scale & Pad the SVG to fit inside the box
         d3.select(importedNode)
             .attr("width", qrSize - 20)
             .attr("height", qrSize - 20)
             .attr("x", 10)
             .attr("y", 10);
-            
+
         // Append the configured SVG to the group
         qrGroup.node().appendChild(importedNode);
     }
 
-    // Separator Line
-    g.append("line")
-        .attr("x1", MARGIN.left)
-        .attr("y1", 830)
-        .attr("x2", WIDTH - 200) 
-        .attr("y2", 830)
-        .attr("stroke", SEPARATOR_COLOR)
-        .attr("stroke-width", 8);
+    // Separator: the spectrum itself, edge to edge
+    const ruleX = MARGIN.left;
+    const ruleW = (WIDTH - EDGE) - MARGIN.left - EDGE;
+
+    g.append("rect")
+        .attr("x", ruleX).attr("y", HEADER_RULE_Y)
+        .attr("width", ruleW).attr("height", 8)
+        .attr("fill", spectrumGradient(svg, "grad-header-rule"));
+}
+
+// --- COMPONENT: PRISM ---
+// White light drops in from the left, hits the glass, and leaves as the
+// streamgraph below. Pure geometry + gradients so it survives an SVG export.
+function drawPrism(svg: any, cx: number, streamL: number, streamR: number) {
+    const g = svg.append("g").attr("class", "prism");
+
+    const apexY = PRISM.apexY;
+    const baseY = apexY + PRISM.height;
+    const half = PRISM.halfWidth;
+
+    // 0. AFTERGLOW: the glass sitting in its own light
+    const glow = getDefs(svg).append("radialGradient")
+        .attr("id", "grad-prism-glow")
+        .attr("gradientUnits", "userSpaceOnUse")
+        .attr("cx", cx).attr("cy", baseY + 120).attr("r", 1000);
+    [[0, SPECTRUM[4], 0.18], [0.45, SPECTRUM[5], 0.08], [1, SPECTRUM[5], 0]]
+        .forEach(([offset, color, op]: any) => {
+            glow.append("stop")
+                .attr("offset", `${offset * 100}%`)
+                .attr("stop-color", color)
+                .attr("stop-opacity", op);
+        });
+
+    g.append("circle")
+        .attr("cx", cx).attr("cy", baseY + 120).attr("r", 1000)
+        .attr("fill", "url(#grad-prism-glow)");
+
+    // 0b. INTERFERENCE RINGS: faint spectral ripples off the glass
+    [200, 290, 380, 470].forEach((r, i) => {
+        g.append("circle")
+            .attr("cx", cx).attr("cy", baseY).attr("r", r)
+            .attr("fill", "none")
+            .attr("stroke", prism(i / 3))
+            .attr("stroke-width", 4)
+            .attr("stroke-opacity", 0.22 - i * 0.04);
+    });
+
+    // 1. DISPERSION FAN: prism base -> head of the streamgraph
+    const fanTopL = cx - half + 12;
+    const fanTopR = cx + half - 12;
+    // Runs well past the head of the graph, so the tail that shows either
+    // side of the streams fades out instead of ending on a hard edge
+    const fanBottomY = MARGIN.top + 320;
+    const headWidth = Math.max(streamR - streamL, 550);
+
+    const bands = SPECTRUM.length;
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+    // Two passes: a wide, near-transparent ghost of the dispersion, then the
+    // fan proper on top of it. The overspill reads as the light shimmering.
+    const PASSES = [
+        { id: "ghost", spread: 2.7, opacity: 0.16 },
+        { id: "main", spread: 1.45, opacity: 1 }
+    ];
+
+    PASSES.forEach(pass => {
+        // Wider than the stream head, so the bands bloom just past its edges
+        const spanBottom = Math.max(headWidth * pass.spread, 800);
+        const bottomL = cx - spanBottom / 2;
+        const bottomR = cx + spanBottom / 2;
+
+        SPECTRUM.forEach((color, i) => {
+            // Fade out at the bottom so the seam with the streamgraph disappears
+            const grad = getDefs(svg).append("linearGradient")
+                .attr("id", `grad-fan-${pass.id}-${i}`)
+                .attr("x1", "0%").attr("y1", "0%")
+                .attr("x2", "0%").attr("y2", "100%");
+            [[0, 0.95], [0.45, 0.82], [1, 0]].forEach(([offset, op]) => {
+                grad.append("stop")
+                    .attr("offset", `${offset * 100}%`)
+                    .attr("stop-color", color)
+                    .attr("stop-opacity", op);
+            });
+
+            // 1px overlap between bands avoids hairline gaps in print
+            const t0 = i / bands, t1 = (i + 1) / bands;
+            const path = [
+                `M ${lerp(fanTopL, fanTopR, t0) - 1},${baseY}`,
+                `L ${lerp(fanTopL, fanTopR, t1) + 1},${baseY}`,
+                `L ${lerp(bottomL, bottomR, t1) + 1},${fanBottomY}`,
+                `L ${lerp(bottomL, bottomR, t0) - 1},${fanBottomY}`,
+                "Z"
+            ].join(" ");
+
+            g.append("path")
+                .attr("d", path)
+                .attr("fill", `url(#grad-fan-${pass.id}-${i})`)
+                .attr("opacity", pass.opacity);
+        });
+    });
+
+    // 2. THE GLASS
+    const glass = getDefs(svg).append("linearGradient")
+        .attr("id", "grad-glass")
+        .attr("x1", "0%").attr("y1", "0%")
+        .attr("x2", "0%").attr("y2", "100%");
+    glass.append("stop").attr("offset", "0%").attr("stop-color", "#ffffff").attr("stop-opacity", 0.07);
+    glass.append("stop").attr("offset", "100%").attr("stop-color", "#000000").attr("stop-opacity", 1);
+
+    g.append("path")
+        .attr("d", `M ${cx},${apexY} L ${cx + half},${baseY} L ${cx - half},${baseY} Z`)
+        .attr("fill", "url(#grad-glass)")
+        .attr("stroke", TEXT_COLOR)
+        .attr("stroke-width", 5)
+        .attr("stroke-linejoin", "round");
+
+    // 3. THE BEAM: in from the left edge, onto the left face of the prism
+    const hitX = cx - half * 0.5;
+    const hitY = apexY + PRISM.height * 0.5;
+
+    const beam = getDefs(svg).append("linearGradient")
+        .attr("id", "grad-beam")
+        .attr("gradientUnits", "userSpaceOnUse")
+        .attr("x1", 0).attr("y1", PRISM.beamOriginY)
+        .attr("x2", hitX).attr("y2", hitY);
+    beam.append("stop").attr("offset", "0%").attr("stop-color", "#ffffff").attr("stop-opacity", 0.15);
+    beam.append("stop").attr("offset", "70%").attr("stop-color", "#ffffff").attr("stop-opacity", 0.75);
+    beam.append("stop").attr("offset", "100%").attr("stop-color", "#ffffff").attr("stop-opacity", 1);
+
+    // Soft halo, then the hard edge of the beam
+    [{ w: 44, o: 0.10 }, { w: 10, o: 1 }].forEach(s => {
+        g.append("line")
+            .attr("x1", 0).attr("y1", PRISM.beamOriginY)
+            .attr("x2", hitX).attr("y2", hitY)
+            .attr("stroke", "url(#grad-beam)")
+            .attr("stroke-width", s.w)
+            .attr("opacity", s.o)
+            .attr("stroke-linecap", "round");
+    });
+
+    // Flare where the beam enters the glass
+    const flare = getDefs(svg).append("radialGradient").attr("id", "grad-flare");
+    flare.append("stop").attr("offset", "0%").attr("stop-color", "#ffffff").attr("stop-opacity", 0.45);
+    flare.append("stop").attr("offset", "100%").attr("stop-color", "#ffffff").attr("stop-opacity", 0);
+
+    g.append("circle")
+        .attr("cx", hitX).attr("cy", hitY).attr("r", 110)
+        .attr("fill", "url(#grad-flare)");
 }
 
 // --- COMPONENT: STREAMGRAPH ---
@@ -215,52 +391,78 @@ async function drawStreamgraph(svg: any, data: any[]) {
     const stack = d3.stack().keys(keys).offset(d3.stackOffsetWiggle).order(d3.stackOrderInsideOut);
     const series = stack(data);
 
+    // The wiggle offset lets the whole ribbon meander sideways over the decade,
+    // so the x domain has to be wide enough to hold the meander rather than the
+    // streams: only ~73% of the plot ever carries colour. Pulling each month
+    // back towards the centre reclaims that. Every layer in a month moves by the
+    // same amount, so the band widths - the actual data - are untouched; only
+    // the horizontal wander is damped. 0 = raw wiggle, 1 = fully centred.
+    const DRIFT_CORRECTION = 0.75;
+
+    for (let row = 0; row < data.length; row++) {
+        let lo = Infinity, hi = -Infinity;
+        for (const layer of series) {
+            lo = Math.min(lo, layer[row][0]);
+            hi = Math.max(hi, layer[row][1]);
+        }
+        const shift = ((lo + hi) / 2) * DRIFT_CORRECTION;
+        for (const layer of series) {
+            layer[row][0] -= shift;
+            layer[row][1] -= shift;
+        }
+    }
+
     const y = d3.scaleTime()
         .domain(d3.extent(data, (d: any) => d.dateObj))
-        // Reduced bottom range slightly to keep graph tight
-        .range([MARGIN.top, HEIGHT - MARGIN.bottom - 350]); 
+        .range([MARGIN.top, HEIGHT - MARGIN.bottom]);
 
     const maxStack = d3.max(series, (layer: any) => d3.max(layer, (d: any) => d[1]));
     const minStack = d3.min(series, (layer: any) => d3.min(layer, (d: any) => d[0]));
     const x = d3.scaleLinear()
         .domain([minStack, maxStack])
-        .range([MARGIN.left, GRAPH_WIDTH - MARGIN.right]);
+        .range([MARGIN.left, GRAPH_RIGHT]);
 
-    const colorScale = (key: string) => {
-        if (REPO_COLORS[key]) return REPO_COLORS[key];
-        let hash = 0;
-        for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
-        return FALLBACK_COLORS[Math.abs(hash) % FALLBACK_COLORS.length];
-    };
+    // Colour by position in the stack, not by name: the graph reads left to
+    // right as dispersed light instead of as an unrelated set of hues.
+    const lastIndex = Math.max(series.length - 1, 1);
+    const colorScale = (layer: any) => prism(layer.index / lastIndex);
 
     const area = d3.area()
         .y((d: any) => y(d.data.dateObj))
         .x0((d: any) => x(d[0]))
         .x1((d: any) => x(d[1]))
-        .curve(d3.curveBasis); 
+        .curve(d3.curveBasis);
 
     // Draw Event Lines
     const linesLayer = svg.append("g").attr("class", "event-lines");
     linesLayer.selectAll(".event-line")
         .data(EVENTS)
         .join("line")
-        .attr("x1", MARGIN.left+150)
-        .attr("x2", GRAPH_WIDTH - MARGIN.right + 100)
+        .attr("x1", MARGIN.left + 150)
+        .attr("x2", TIMELINE_LABEL_RIGHT)
         .attr("y1", (d: any) => y(parseDate(d.date)))
         .attr("y2", (d: any) => y(parseDate(d.date)))
-        .attr("stroke", ACCENT_COLOR) 
-        .attr("stroke-width", 3) 
-        .attr("stroke-dasharray", "15,15")
-        .attr("opacity", 0.6);
+        .attr("stroke", ACCENT_COLOR)
+        .attr("stroke-width", 2.5)
+        .attr("stroke-dasharray", "6,26")
+        .attr("opacity", 0.45);
+
+    // Prism on top of the milestone dashes, but under the streams: the fan
+    // runs beneath the head of the graph so the seam is hidden
+    const firstMin = d3.min(series, (s: any) => s[0][0]);
+    const firstMax = d3.max(series, (s: any) => s[0][1]);
+    drawPrism(svg, (x(firstMin) + x(firstMax)) / 2, x(firstMin), x(firstMax));
 
     // Draw Streams
     svg.append("g").selectAll("path")
         .data(series)
         .join("path")
-        .attr("fill", (d: any) => colorScale(d.key))
+        .attr("fill", (d: any) => colorScale(d))
         .attr("d", area)
-        .attr("stroke", "rgba(0,0,0,0.2)")
-        .attr("stroke-width", 1.5)
+        // Crisp black edges keep the bands separate, like the sleeve
+        .attr("stroke", "#000000")
+        .attr("stroke-width", 3)
+        .attr("stroke-opacity", 0.55)
         .attr("opacity", 1);
 
     // Labels
@@ -276,7 +478,7 @@ async function drawStreamgraph(svg: any, data: any[]) {
     }).sort((a: any, b: any) => b.size - a.size);
 
     const placedLabels: any[] = [];
-    const MIN_LABEL_DIST_Y = 60; 
+    const MIN_LABEL_DIST_Y = 60;
     const MIN_LABEL_DIST_X = 100;
 
     const visibleLabels = labelData.filter((d: any) => {
@@ -296,13 +498,13 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("class", "halo-label")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .style("font-family", "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif") 
-        .style("font-size", "60px") 
-        .style("font-weight", "bold") 
+        .style("font-family", BODY_FONT)
+        .style("font-size", "60px")
+        .style("font-weight", "bold")
         .style("stroke", "#000000") // Black Halo
-        .style("stroke-width", "12px") // Thick Outline
+        .style("stroke-width", "14px") // Thick Outline
         .style("stroke-linejoin", "round") // Smooth corners
-        .style("stroke-opacity", "0.3") // Slightly softer look, but still vector
+        .style("stroke-opacity", "0.45") // Readable on the bright bands, still vector
         .style("fill", "none") // No fill, just outline
         .style("pointer-events", "none")
         .text((d: any) => d.key)
@@ -315,8 +517,8 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .attr("class", "repo-label")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "middle")
-        .style("font-size", "60px") 
-        .style("font-weight", "bold") 
+        .style("font-size", "60px")
+        .style("font-weight", "bold")
         .style("fill", "white")
         .style("pointer-events", "none")
         .text((d: any) => d.key)
@@ -327,16 +529,25 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .data(EVENTS)
         .join("text")
         .attr("class", "event-label")
-        .attr("x", GRAPH_WIDTH - MARGIN.right + 100) 
-        .attr("text-anchor", "end") 
-        .attr("y", (d: any) => y(parseDate(d.date)))
-        .attr("dy", "1.3em") 
-        .text((d: any) => d.label)
-        .attr("fill", ACCENT_COLOR)
-        .attr("font-size", "60px") 
-        .attr("font-weight", "bold")
-        .style("letter-spacing", "1px")
-        .style("text-shadow", "0px 2px 5px rgba(0,0,0,0.8)"); 
+        .attr("x", TIMELINE_LABEL_RIGHT)
+        .attr("text-anchor", "end")
+        .attr("y", (d: any) => y(parseDate(d.date)) + TIMELINE_LABEL_DY)
+        .text((d: any) => d.label.toUpperCase())
+        .style("font-family", DISPLAY_FONT)
+        .attr("fill", TEXT_COLOR)
+        .attr("font-size", `${TIMELINE_FONT_SIZE}px`)
+        .attr("font-weight", "700")
+        .style("letter-spacing", "4px");
+
+    // A single band of the spectrum marks each milestone
+    labelsLayer.selectAll(".event-dot")
+        .data(EVENTS)
+        .join("circle")
+        .attr("class", "event-dot")
+        .attr("cx", TIMELINE_DOT_X)
+        .attr("cy", (d: any) => y(parseDate(d.date)) + TIMELINE_DOT_DY)
+        .attr("r", 16)
+        .attr("fill", (d: any) => d.color);
 
     // Y-Axis
     const yAxis = d3.axisLeft(y)
@@ -350,206 +561,70 @@ async function drawStreamgraph(svg: any, data: any[]) {
         .call(yAxis)
         .call((g: any) => g.select(".domain").remove())
         .selectAll("text")
-        .attr("font-size", "60px") 
+        .style("font-family", DISPLAY_FONT)
+        .attr("font-size", "60px")
         .attr("font-weight", "bold")
-        .attr("fill", ACCENT_COLOR);
+        .attr("letter-spacing", "3px")
+        .attr("fill", SUB_TEXT_COLOR);
 }
 
-// --- COMPONENT: SIDEBAR ---
-function drawSidebar(svg: any, fullData: any[]) {
-    const g = svg.append("g").attr("transform", `translate(${SIDEBAR_X_START}, ${MARGIN.top})`);
+// --- COMPONENT: FOOTER ---
+// The sign-off, running the full width of the sheet now that the stats column
+// is gone: the message, then the heartbeat off the sleeve's back cover.
+function drawFooter(svg: any) {
+    const g = svg.append("g").attr("class", "footer");
 
-    // Separator Line
-    g.append("line")
-        .attr("x1", 0) .attr("y1", -50)
-        .attr("x2", 0) .attr("y2", HEIGHT - MARGIN.top - MARGIN.bottom)
-        .attr("stroke", SEPARATOR_COLOR)
-        .attr("stroke-width", 8);
+    const left = MARGIN.left;
+    const right = WIDTH - EDGE;
 
-    let currentY = 50;
-    
-    // --- SECTION 1: KEY STATS ---
-    g.append("text")
-        .attr("x", 80).attr("y", currentY)
-        .text("LIFETIME STATS")
-        .attr("font-size", "70px") 
-        .attr("font-weight", "bold")
-        .attr("fill", ACCENT_COLOR)
-        .style("letter-spacing", "3px");
+    chromaticText(g, "Thank you for everything!", (left + right) / 2, HEIGHT - 340, (t: any) => {
+        t.attr("text-anchor", "middle")
+            .style("font-family", DISPLAY_FONT)
+            .attr("font-size", "90px")
+            .attr("font-weight", "700")
+            .style("letter-spacing", "5px");
+    }, 10);
 
-    currentY += 200;
+    drawPulse(svg, g, left, HEIGHT - 150, right - left);
+}
 
-    STATS.forEach((stat: any, i) => {
-        const xOffset = 80 + (i % 2) * 600; 
-        const yOffset = currentY + Math.floor(i / 2) * 200;
-        const valColor = stat.color ? stat.color : TEXT_COLOR;
+// --- COMPONENT: PULSE ---
+function drawPulse(svg: any, g: any, x: number, y: number, w: number) {
+    // Flat line, one beat, flat line again
+    const beats = [
+        [0, 0], [0.34, 0], [0.38, -0.12], [0.44, 0.10],
+        [0.48, -1], [0.52, 0.55], [0.57, -0.10], [0.62, 0],
+        [1, 0]
+    ];
+    const amp = 90;
+    const path = beats
+        .map(([t, v], i) => `${i === 0 ? "M" : "L"} ${x + t * w},${y + v * amp}`)
+        .join(" ");
 
-        g.append("text")
-            .attr("x", xOffset).attr("y", yOffset)
-            .text(stat.value)
-            .attr("font-size", "90px") 
-            .attr("font-weight", "800")
-            .attr("fill", valColor);
-        
-        g.append("text")
-            .attr("x", xOffset).attr("y", yOffset + 65)
-            .text(stat.label.toUpperCase())
-            .attr("font-size", "45px") 
-            .attr("fill", SUB_TEXT_COLOR)
-            .style("letter-spacing", "1px");
-    });
+    // Spectral bloom underneath, then the white trace
+    g.append("path")
+        .attr("d", path)
+        .attr("fill", "none")
+        .attr("stroke", spectrumGradient(svg, "grad-pulse"))
+        .attr("stroke-width", 26)
+        .attr("stroke-opacity", 0.35)
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round");
 
-    // Reduced gap to fit more sections
-    currentY += 500; 
-
-    // --- SECTION 2: TRIVIA ---
-    g.append("text")
-        .attr("x", 80).attr("y", currentY)
-        .text("TRIVIA")
-        .attr("font-size", "70px")
-        .attr("font-weight", "bold")
-        .attr("fill", ACCENT_COLOR)
-        .style("letter-spacing", "3px");
-    
-    currentY += 140;
-
-    TRIVIA.forEach((item, i) => {
-        g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 200))
-            .text(item.question)
-            .attr("font-size", "65px") 
-            .attr("fill", SUB_TEXT_COLOR);
-
-        g.append("text")
-            .attr("x", 80).attr("y", currentY + (i * 200) + 80)
-            .text(item.answer)
-            .attr("font-size", "75px") 
-            .attr("font-weight", "bold")
-            .attr("fill", TEXT_COLOR);
-    });
-
-    // Reduced gap
-    currentY += (TRIVIA.length * 200) + 150;
-
-    // --- SECTION 3: TEAM BUBBLES ---
-    g.append("text")
-        .attr("x", 80).attr("y", currentY)
-        .text("COMMIT TYPES & TEAMS")
-        .attr("font-size", "70px")
-        .attr("font-weight", "bold")
-        .attr("fill", ACCENT_COLOR)
-        .style("letter-spacing", "3px");
-    
-    currentY += 80;
-
-    const bubbleSize = 1000; 
-    const root = d3.hierarchy({ children: TEAM_DATA }).sum((d: any) => d.value);
-    const pack = d3.pack().size([bubbleSize, bubbleSize]).padding(20);
-    const rootNode = pack(root);
-
-    const bubbles = g.append("g").attr("transform", `translate(80, ${currentY})`);
-    const nodes = bubbles.selectAll(".node")
-        .data(rootNode.leaves())
-        .join("g")
-        .attr("class", "node")
-        .attr("transform", (d: any) => `translate(${d.x}, ${d.y})`);
-
-    // Glass/HUD Style
-    nodes.append("circle")
-        .attr("r", (d: any) => d.r)
-        .attr("fill", (d: any) => d.data.color)
-        .attr("fill-opacity", 0.2) 
-        .attr("stroke", (d: any) => d.data.color)
-        .attr("stroke-width", 4); 
-
-    nodes.append("text")
-        .style("text-anchor", "middle")
-        .text((d: any) => d.data.id)
-        .attr("font-size", (d: any) => Math.min(2 * d.r / d.data.id.length * 1.5, 48) + "px")
-        .attr("font-weight", "bold")
-        .attr("fill", "white")
-        .style("pointer-events", "none")
-        .style("text-shadow", "0px 2px 8px rgba(0,0,0,0.8)"); 
-
-    currentY += bubbleSize + 210; // Move down
-
-    // --- SECTION 4: MEETINGS GRAPH ---
-    g.append("text")
-        .attr("x", 80).attr("y", currentY)
-        .text("MEETINGS ATTENDED")
-        .attr("font-size", "70px")
-        .attr("font-weight", "bold")
-        .attr("fill", ACCENT_COLOR)
-        .style("letter-spacing", "3px");
-    
-    currentY += 100;
-
-    const graphHeight = 350;
-    const graphWidth = 1000;
-    const graphG = g.append("g").attr("transform", `translate(80, ${currentY})`);
-
-    const mX = d3.scaleTime()
-        .domain(d3.extent(MEETINGS_DATA, (d: any) => d.year))
-        .range([0, graphWidth]);
-    
-    const mY = d3.scaleLinear()
-        .domain([0, d3.max(MEETINGS_DATA, (d: any) => d.value)])
-        .range([graphHeight, 0]);
-
-    const mArea = d3.area()
-        .x((d: any) => mX(d.year))
-        .y0(graphHeight)
-        .y1((d: any) => mY(d.value))
-        .curve(d3.curveStepAfter);
-
-    graphG.append("path")
-        .datum(MEETINGS_DATA)
-        .attr("fill", "#e74c3c")
-        .attr("fill-opacity", 0.6)
-        .attr("stroke", "#e74c3c")
-        .attr("stroke-width", 3)
-        .attr("d", mArea);
-
-    graphG.append("line")
-        .attr("x1", 0).attr("y1", graphHeight)
-        .attr("x2", graphWidth).attr("y2", graphHeight)
-        .attr("stroke", "#666").attr("stroke-width", 2);
-
-    // --- NEW: START / END LABELS ---
-    graphG.append("text")
-        .attr("x", 0).attr("y", graphHeight + 40)
-        .text("2016")
-        .attr("font-size", "33px")
-        .attr("font-weight", "bold")
-        .attr("fill", "#666");
-
-    graphG.append("text")
-        .attr("x", graphWidth).attr("y", graphHeight + 40)
-        .attr("text-anchor", "end") // Align right
-        .text("2026")
-        .attr("font-size", "33px")
-        .attr("font-weight", "bold")
-        .attr("fill", "#666");
-
-    currentY += graphHeight + 250; // Final large gap for signature space
-
-    // --- FINAL FOOTER ---
-    g.append("text")
-        .attr("x", SIDEBAR_WIDTH / 2 - 75) 
-        .attr("y", currentY)
-        .attr("text-anchor", "middle")
-        .text("Thank you for everything!")
-        .attr("font-size", "75")
-        .attr("font-weight", "900")
-        .attr("fill", TEXT_COLOR)
-        .style("letter-spacing", "3px");
+    g.append("path")
+        .attr("d", path)
+        .attr("fill", "none")
+        .attr("stroke", TEXT_COLOR)
+        .attr("stroke-width", 6)
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round");
 }
 
 // --- BUTTON HELPER ---
 setTimeout(() => {
     d3.select("#save-btn").on("click", () => {
         const svgNode = document.querySelector("#chart svg");
-        saveSvg(svgNode, "tschofen_infographic_final.svg");
+        saveSvg(svgNode, "brugnoni_infographic_final.svg");
     });
 }, 500);
 
