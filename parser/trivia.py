@@ -6,13 +6,15 @@ import sys
 from collections import Counter
 from datetime import datetime
 
+import squash
+
 # --- CONFIGURATION ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Assumes repo_config.json is in the parent directory
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "..", "config", "repo_config.json") 
 
 # Filter config (Regex to match Author Name or Email)
-AUTHOR_REGEX = r"tschofen|atschofen"
+AUTHOR_REGEX = r"brugnoni"
 
 def load_config():
     """Parses the JSON config file into a python dictionary."""
@@ -24,10 +26,52 @@ def load_config():
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
             print(f"✅ Loaded config for {len(config)} repositories from {os.path.basename(CONFIG_FILE)}")
-            return config
+            return {path: normalize_repo_options(value) for path, value in config.items()}
     except json.JSONDecodeError as e:
         print(f"❌ Error decoding JSON: {e}")
         sys.exit(1)
+
+def normalize_repo_options(value):
+    """Accepts either a bare start date or the full options dict (see parse.py)."""
+    if isinstance(value, dict):
+        return {
+            "start_date": value.get("start_date"),
+            "squash_merges": value.get("squash_merges", True),
+        }
+    return {"start_date": value, "squash_merges": True}
+
+def collapse_to_work_units(repo_path, commits):
+    """Collapses a non-squashing repo's commits down to one entry per PR.
+
+    'shared' keeps every branch commit, so leaving it raw would inflate the
+    commit total and skew every distribution below towards that one repo. We
+    keep the newest matching commit of each merged branch as its representative
+    (the stand-in for the squash commit) and fold the branch's line counts into
+    it, so line totals stay untouched while the counts become comparable.
+    """
+    unit_of = {}
+    for index, unit in enumerate(squash.get_work_units(repo_path)):
+        for commit_hash in unit["hashes"]:
+            unit_of[commit_hash] = index
+
+    collapsed = {}
+    loose = []
+    for commit in commits:
+        index = unit_of.get(commit['hash'])
+        if index is None:
+            # Not reachable from HEAD (e.g. sits on an unmerged branch)
+            loose.append(commit)
+            continue
+
+        representative = collapsed.get(index)
+        if representative is None:
+            # git log walks newest first, so the first one we see is the newest
+            collapsed[index] = dict(commit)
+        else:
+            representative['added'] += commit['added']
+            representative['deleted'] += commit['deleted']
+
+    return list(collapsed.values()) + loose
 
 def get_commits_from_repo(repo_path, start_date):
     """
@@ -48,7 +92,8 @@ def get_commits_from_repo(repo_path, start_date):
         cmd = [
             'git', 'log',
             f'--since={start_date}',
-            '--pretty=format:COMMIT_MARKER|%h|%aD|%an|%ae|%s',
+            # Full hash (%H), so it can be matched against squash.py's work units
+            '--pretty=format:COMMIT_MARKER|%H|%aD|%an|%ae|%s',
             '--numstat'
         ]
         
@@ -85,6 +130,7 @@ def get_commits_from_repo(repo_path, start_date):
                     day_full = "Unknown"
 
                 current_commit = {
+                    'hash': h,
                     'day': day_full,
                     'message': msg,
                     'added': 0,
@@ -174,16 +220,22 @@ def main():
     repos = load_config()
     all_commits = []
 
-    # Iterate over flat dictionary {path: date}
-    for repo_path, start_date in repos.items():
+    # Iterate over the config {path: options}
+    for repo_path, options in repos.items():
         name = os.path.basename(repo_path)
-        
-        if not start_date:
-            start_date = '2012-01-01'
-        
+
+        start_date = options["start_date"] or '2012-01-01'
+
         print(f"Processing {name}...")
         repo_commits = get_commits_from_repo(repo_path, start_date)
-        print(f"  -> Found {len(repo_commits)} matching commits.")
+
+        if not options["squash_merges"] and repo_commits:
+            raw = len(repo_commits)
+            repo_commits = collapse_to_work_units(repo_path, repo_commits)
+            print(f"  -> Collapsed {raw} commits into {len(repo_commits)} work units.")
+        else:
+            print(f"  -> Found {len(repo_commits)} matching commits.")
+
         all_commits.extend(repo_commits)
 
     if not all_commits:

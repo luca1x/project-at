@@ -10,18 +10,26 @@ CHILD_REPOS = [
     "/Users/lucatl/production-front-end",
     "/Users/lucatl/profile-api",
     "/Users/lucatl/infrastructure",
-    "/Users/lucatl/profile-db",
-    "/Users/lucatl/advertiser-connect",
     "/Users/lucatl/shared",
-    "/Users/lucatl/inference",
-    "/Users/lucatl/monitoring-utils",
-    "/Users/lucatl/audience-export",
-    "/Users/lucatl/items",
     "/Users/lucatl/python-lib",
     "/Users/lucatl/utils",
-    "/Users/lucatl/measurement-matching",
-    "/Users/lucatl/segment-api",
-    "/Users/lucatl/experience"
+    "/Users/lucatl/data-rights-gateway",
+    "/Users/lucatl/canonicalization",
+    "/Users/lucatl/attribute-builder",
+    "/Users/lucatl/id-matcher",
+    "/Users/lucatl/aggregation",
+    "/Users/lucatl/aws-nextgen-infra",
+    "/Users/lucatl/terraform-module-couchbase7-cluster",
+    "/Users/lucatl/system-cost-report"
+]
+
+# Repos that do NOT squash-merge. Every commit of a branch is kept there, so a
+# single PR shows up as many commits and the repo would dwarf all the others in
+# the streamgraph. parse.py collapses these back into PR-sized units.
+NO_SQUASH_REPOS = [
+    "/Users/lucatl/shared",
+    "/Users/lucatl/system-cost-report",
+    "/Users/lucatl/data-rights-gateway"
 ]
 
 # --- PATH SETUP ---
@@ -94,23 +102,31 @@ def get_repo_start_date(child_path, mother_path):
         print(f"      (Error: {e})", end=" ")
         return None
 
+def build_entry(repo, date):
+    """Emits a bare date, or the dict form when the repo needs extra options."""
+    if repo in NO_SQUASH_REPOS:
+        return {"start_date": date, "squash_merges": False}
+    return date
+
 def main():
     print(f"🕵️  Analysing repos (Mother Branch: {get_default_branch(MOTHER_REPO)})...")
-    
+
     config = {}
-    config[MOTHER_REPO] = None
+    config[MOTHER_REPO] = build_entry(MOTHER_REPO, None)
 
     for repo in CHILD_REPOS:
         repo_name = os.path.basename(repo)
         print(f"   - {repo_name}...", end=" ", flush=True)
-        
+
         date = get_repo_start_date(repo, MOTHER_REPO)
-        config[repo] = date
-        
+        config[repo] = build_entry(repo, date)
+
         if date:
-            print(f"✅ Starts {date}")
+            print(f"✅ Starts {date}", end="")
         else:
-            print(f"❌ Full History")
+            print(f"❌ Full History", end="")
+
+        print("  (merges collapsed)" if repo in NO_SQUASH_REPOS else "")
 
     os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
 

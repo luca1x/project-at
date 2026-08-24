@@ -17,13 +17,13 @@ const SIDEBAR_X_START = GRAPH_WIDTH + 150;
 // --- COLORS ---
 const REPO_COLORS: { [key: string]: string } = {
     "production": "#E63946",       
-    "production-frontend": "#e87233", 
+    "production-front-end": "#e87233", 
     "shared": "#A8DADC",           
     "infrastructure": "#457B9D",   
     "profile-api": "#1D3557",
-    "profile-db": "#eece00",      
-    "python-lib": "#1c9b8c",
-    "segment-api": "#B56576",
+    "canonicalization": "#eece00",      
+    "id-matcher": "#1c9b8c",
+    "production-tagger": "#B56576",
     "advertiser-connect": "#264653",
     "utils" : "#ff7300",
     "audience-export": "#B5838D",
@@ -40,7 +40,7 @@ const FALLBACK_COLORS = [
     "#937860", // Coffee Brown
     "#C44E52",  // Muted Red
     "#086b78",
-    "#25085a",
+    "#1ac8c3",
 ]
 
 
@@ -104,11 +104,12 @@ const EVENTS = [
     { date: "2016-01", label: "Seed Round", color: "#fff" },
     { date: "2017-01", label: "Ringier Axel Springer", color: "#fff" },
     { date: "2017-05", label: "Audience Team", color: "#fff" },
-    { date: "2020-06", label: "Realtime System", color: "#fff" },
+    { date: "2020-06", label: "DC Team Lead", color: "#fff" },
     { date: "2021-02", label: "Series B", color: "#fff" },
-    { date: "2022-03", label: "Triplelift Acquisition", color: "#fff" },
+    { date: "2022-03", label: "Acquisition", color: "#fff" },
+    { date: "2022-06", label: "Introduction to S. Kumar", color: "#fff" },
     { date: "2022-09", label: "US Datacenter Launch", color: "#fff" },
-    { date: "2025-01", label: "AIS Team", color: "#fff" }
+    { date: "2025-01", label: "AIS Team IC", color: "#fff" }
 ];
 
 // --- MAIN RENDER FUNCTION ---
@@ -150,7 +151,7 @@ function drawHeader(svg: any, qrXml: any) {
     g.append("text")
         .attr("x", MARGIN.left) 
         .attr("y", 580)
-        .text("A Decade of Impact") 
+        .text("Almost A Decade of Impact") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "280px") 
         .attr("font-weight", "700") 
@@ -162,7 +163,7 @@ function drawHeader(svg: any, qrXml: any) {
     g.append("text")
         .attr("x", MARGIN.left)
         .attr("y", 700)
-        .text("ANDREAS TSCHOFEN • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
+        .text("SILVANO BRUGNONI • GITHUB COMMIT HISTORY FROM 2016 TO 2026") 
         .style("font-family", "'Futura', sans-serif") 
         .attr("font-size", "70px")
         .attr("font-weight", "bold")

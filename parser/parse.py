@@ -1,13 +1,19 @@
 import os
 import subprocess
+import sys
 import json
 import re
 from datetime import datetime
 from collections import defaultdict
 
+import squash
+
 # --- CONFIGURATION ---
 # Case-insensitive regex for the author
-AUTHOR_REGEX = "tschofen|atschofen" 
+AUTHOR_REGEX = "brugnoni"
+
+# Count release back-merges as work? Almost certainly not - see squash.py.
+COUNT_PLUMBING_MERGES = False
 
 # --- PATH SETUP ---
 # 1. Get the absolute path of the folder containing this script (e.g. /.../project/parser)
@@ -25,29 +31,72 @@ OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
 OUTPUT_FILE = os.path.normpath(OUTPUT_FILE)
 
 def load_config():
-    """Parses the JSON config file into a python dictionary."""
+    """Parses the JSON config file into a python dictionary.
+
+    Accepts two per-repo shapes:
+      "<path>": "2014-08-11"                                  (start date only)
+      "<path>": {"start_date": "...", "squash_merges": false}  (with options)
+
+    and normalises both to the dict form.
+    """
     if not os.path.exists(CONFIG_FILE):
         print(f"❌ Error: Config file not found at: {CONFIG_FILE}")
         print("   Run 'make dates' first to generate it.")
         sys.exit(1)
-        
+
     try:
         with open(CONFIG_FILE, 'r') as f:
             config = json.load(f)
             print(f"✅ Loaded config for {len(config)} repositories from {os.path.basename(CONFIG_FILE)}")
-            return config
+            return {path: normalize_repo_options(value) for path, value in config.items()}
     except json.JSONDecodeError as e:
         print(f"❌ Error decoding JSON: {e}")
         sys.exit(1)
 
-def get_contributions_per_month(repo_path, author_pattern, start_date=None):
-    
+def normalize_repo_options(value):
+    """Turns a legacy bare date (or null) into the full options dict."""
+    if isinstance(value, dict):
+        return {
+            "start_date": value.get("start_date"),
+            # Default True: assume a repo squashes unless told otherwise
+            "squash_merges": value.get("squash_merges", True),
+        }
+    return {"start_date": value, "squash_merges": True}
+
+def get_squashed_contributions_per_month(repo_path, author_pattern, start_date=None):
+    """Commit counts for a repo that does NOT squash-merge.
+
+    Each merged branch is collapsed into a single work unit, so one PR counts
+    once - exactly as it would in the squash-merging repos. Without this, a repo
+    like "shared" contributes ~6x its fair share to the streamgraph.
+    """
+    pattern = re.compile(author_pattern, re.IGNORECASE)
+    monthly_counts = defaultdict(int)
+
+    for unit in squash.get_work_units(repo_path):
+        if unit["plumbing"] and not COUNT_PLUMBING_MERGES:
+            continue
+        # The graph had to be read in full, so filter by date here instead.
+        if start_date and unit["date"] < start_date:
+            continue
+        if pattern.search(unit["blob"]):
+            monthly_counts[unit["date"][:7]] += 1
+
+    return monthly_counts
+
+def get_contributions_per_month(repo_path, author_pattern, start_date=None, squash_merges=True):
+
     if not os.path.exists(repo_path):
         print(f"Warning: Path not found: {repo_path}")
         return {}
 
     repo_name = os.path.basename(os.path.normpath(repo_path))
     print(f"Processing {repo_name}...", end=" ")
+
+    if not squash_merges:
+        # Repo keeps every branch commit - normalise it to PR-sized units.
+        print("(collapsing merges)", end=" ")
+        return get_squashed_contributions_per_month(repo_path, author_pattern, start_date)
 
     # We fetch the raw commit data including:
     # %ai = Date
@@ -118,13 +167,18 @@ def main():
 
     print(f"Scanning {len(repo_config)} repositories for '{AUTHOR_REGEX}'...")
 
-    # Iterate through the dictionary items (path, date)
-    for path, start_date in repo_config.items():
+    # Iterate through the dictionary items (path, options)
+    for path, options in repo_config.items():
         repo_name = os.path.basename(os.path.normpath(path))
         repo_names.append(repo_name)
-        
-        counts = get_contributions_per_month(path, AUTHOR_REGEX, start_date)
-        
+
+        counts = get_contributions_per_month(
+            path,
+            AUTHOR_REGEX,
+            options["start_date"],
+            squash_merges=options["squash_merges"],
+        )
+
         total_found = sum(counts.values())
         print(f"  -> Found {total_found} commits.")
         
